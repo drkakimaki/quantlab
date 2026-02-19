@@ -25,13 +25,30 @@ quantlab/
 │   └── validate.py          # CLI: check integrity
 ├── configs/trend_based/current.yaml
 ├── webui/                   # Browser interface
-└── reports/
+├── reporting/               # Report generation (HTML)
+├── rnd.py                   # Low-token CLI runner (agent-friendly)
+└── reports/                 # Output reports + decision bundles
 ```
 
 ## Quick Start
 
+### WebUI (human inspection)
 ```bash
 .venv/bin/python quantlab/webui/backtest_ui.py --port 8080
+```
+
+### CLI R&D loop (agent-friendly)
+```bash
+# Single run from experiment config
+.venv/bin/python -m quantlab.rnd run \
+  --config quantlab/configs/trend_based/experiment.yaml \
+  --mode yearly \
+  --dd-cap 20
+
+# Grid sweep (writes decision bundle if --decision-slug is set)
+.venv/bin/python -m quantlab.rnd sweep \
+  --sweep quantlab/configs/trend_based/sweeps.yaml \
+  --decision-slug sweep_fast_slow
 ```
 
 ## Strategy Classes
@@ -135,14 +152,25 @@ Browser-based backtest runner at http://localhost:8080
 
 ## Reports
 
+### HTML generation code
+- `quantlab/reporting/generate_bt_report.py` (multi-period single-file HTML)
+
+### Outputs
 ```
 quantlab/reports/
-├── baselines/           # Simple strategy reports
+├── baselines/           # Simple strategy reports (overwritten)
 │   ├── buy_and_hold.html
 │   ├── trend.html
 │   └── mean_reversion.html
-├── trend_based/         # Best trend variants
+├── trend_based/         # Best trend variants (overwritten)
 │   ├── best_trend.html
 │   ├── BEST_TREND_STRATEGY.md
-│   └── decisions/       # Decision bundles (promoted configs)
+│   └── decisions/       # Decision bundles (artifacts we keep)
+│       └── YYYY-MM-DD_<slug>/
+│           ├── DECISION.md
+│           ├── best.yaml
+│           ├── results.csv
+│           ├── top_k.csv        # sweep only
+│           ├── notes.json
+│           └── raw/
 ```
