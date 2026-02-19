@@ -3,6 +3,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+# Optional acceleration
+try:
+    from numba import njit  # type: ignore
+
+    _HAVE_NUMBA = True
+except Exception:  # pragma: no cover
+    njit = None  # type: ignore
+    _HAVE_NUMBA = False
+
 
 def prices_to_returns(prices: pd.Series | pd.DataFrame, log: bool = False):
     """Convert prices to returns.
@@ -40,6 +49,151 @@ def positions_from_signal(
     return pos.fillna(0.0)
 
 
+def _bt_loop_python(
+    px: np.ndarray,
+    units_target: np.ndarray,
+    lots_target: np.ndarray,
+    *,
+    initial_capital: float,
+    leverage: float | None,
+    fee_bps: float,
+    slippage_bps: float,
+    fee_per_lot: float,
+    spread_per_lot: float,
+    margin_policy: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Reference loop (pure python). Returns (equity, pnl, costs, units)."""
+
+    use_abs_costs = (fee_per_lot > 0.0) or (spread_per_lot > 0.0)
+    cost_per_lot = float(fee_per_lot) + float(spread_per_lot)
+    cost_rate_bps = (float(fee_bps) + float(slippage_bps)) * 1e-4
+
+    eq = float(initial_capital)
+
+    n = px.shape[0]
+    eq_arr = np.empty(n, dtype=np.float64)
+    pnl_arr = np.empty(n, dtype=np.float64)
+    costs_arr = np.empty(n, dtype=np.float64)
+    units_arr = np.empty(n, dtype=np.float64)
+
+    prev_price = float(px[0])
+    prev_units = 0.0
+    prev_lots = 0.0
+
+    lev = None if leverage is None else float(leverage)
+
+    for t in range(n):
+        price = float(px[t])
+
+        desired_units = float(units_target[t])
+        desired_lots = float(lots_target[t])
+
+        is_entry = (prev_units == 0.0) and (desired_units != 0.0)
+        if lev is not None and is_entry and margin_policy == "skip_entry":
+            req_margin = abs(desired_units * price) / lev
+            if req_margin > eq:
+                desired_units = 0.0
+                desired_lots = 0.0
+
+        d_units = desired_units - prev_units
+        d_lots = desired_lots - prev_lots
+
+        if use_abs_costs:
+            costs = abs(d_lots) * cost_per_lot
+        else:
+            costs = abs(d_units) * price * cost_rate_bps
+
+        d_price = price - prev_price
+        pnl = prev_units * d_price - costs
+
+        eq = eq + pnl
+
+        eq_arr[t] = eq
+        pnl_arr[t] = pnl
+        costs_arr[t] = costs
+        units_arr[t] = desired_units
+
+        prev_price = price
+        prev_units = desired_units
+        prev_lots = desired_lots
+
+    return eq_arr, pnl_arr, costs_arr, units_arr
+
+
+if _HAVE_NUMBA:
+
+    @njit(cache=True)
+    def _bt_loop_numba(
+        px,
+        units_target,
+        lots_target,
+        initial_capital,
+        leverage,
+        fee_bps,
+        slippage_bps,
+        fee_per_lot,
+        spread_per_lot,
+        margin_policy_skip_entry,
+    ):
+        """Numba-accelerated loop. Returns (equity, pnl, costs, units)."""
+
+        use_abs_costs = (fee_per_lot > 0.0) or (spread_per_lot > 0.0)
+        cost_per_lot = fee_per_lot + spread_per_lot
+        cost_rate_bps = (fee_bps + slippage_bps) * 1e-4
+
+        n = px.shape[0]
+        eq_arr = np.empty(n, dtype=np.float64)
+        pnl_arr = np.empty(n, dtype=np.float64)
+        costs_arr = np.empty(n, dtype=np.float64)
+        units_arr = np.empty(n, dtype=np.float64)
+
+        eq = initial_capital
+
+        prev_price = px[0]
+        prev_units = 0.0
+        prev_lots = 0.0
+
+        lev = leverage  # may be NaN sentinel
+
+        for t in range(n):
+            price = px[t]
+
+            desired_units = units_target[t]
+            desired_lots = lots_target[t]
+
+            # Entry-only margin check (matches python reference)
+            if margin_policy_skip_entry and lev > 0.0:
+                if prev_units == 0.0 and desired_units != 0.0:
+                    req_margin = abs(desired_units * price) / lev
+                    if req_margin > eq:
+                        desired_units = 0.0
+                        desired_lots = 0.0
+
+            d_units = desired_units - prev_units
+            d_lots = desired_lots - prev_lots
+
+            if use_abs_costs:
+                costs = abs(d_lots) * cost_per_lot
+            else:
+                costs = abs(d_units) * price * cost_rate_bps
+
+            d_price = price - prev_price
+            pnl = prev_units * d_price - costs
+
+            eq = eq + pnl
+
+            eq_arr[t] = eq
+            pnl_arr[t] = pnl
+            costs_arr[t] = costs
+            units_arr[t] = desired_units
+
+            prev_price = price
+            prev_units = desired_units
+            prev_lots = desired_lots
+
+        return eq_arr, pnl_arr, costs_arr, units_arr
+
+
 def backtest_positions_account_margin(
     *,
     prices: pd.Series,
@@ -56,6 +210,7 @@ def backtest_positions_account_margin(
     max_size: float | None = 2.0,
     discrete_sizes: tuple[float, ...] = (0.0, 1.0, 2.0),
     margin_policy: str = "skip_entry",  # skip_entry | allow_negative
+    use_numba: bool | None = None,
 ) -> pd.DataFrame:
     """Backtest a 1D strategy using a simple *account + margin* model.
 
@@ -121,62 +276,48 @@ def backtest_positions_account_margin(
     lots = pos_disc * float(lot_per_size)
     units_target = lots * float(contract_size_per_lot)
 
-    # Cost calculation
-    # Prefer absolute per-lot costs if specified, else use BPS
-    use_abs_costs = (fee_per_lot > 0 or spread_per_lot > 0)
-    cost_per_lot = float(fee_per_lot) + float(spread_per_lot)
-    cost_rate_bps = (float(fee_bps) + float(slippage_bps)) * 1e-4
+    # --- Engine loop (python reference or numba accelerated) ---
 
-    eq = float(initial_capital)
-    eq_series: list[float] = []
-    pnl_series: list[float] = []
-    costs_series: list[float] = []
-    units_series: list[float] = []
+    px_arr = px.to_numpy(dtype=np.float64)
+    units_arr_target = units_target.to_numpy(dtype=np.float64)
+    lots_arr_target = lots.to_numpy(dtype=np.float64)
 
-    prev_price = float(px.iloc[0])
-    prev_units = 0.0
-    prev_lots = 0.0
+    if use_numba is None:
+        use_numba = _HAVE_NUMBA
 
-    lev = None if leverage is None else float(leverage)
+    if use_numba and _HAVE_NUMBA:
+        # Numba doesn't accept None; use -1.0 sentinel to disable leverage.
+        lev = -1.0 if leverage is None else float(leverage)
+        eq_arr, pnl_arr, costs_arr, units_arr = _bt_loop_numba(
+            px_arr,
+            units_arr_target,
+            lots_arr_target,
+            float(initial_capital),
+            lev,
+            float(fee_bps),
+            float(slippage_bps),
+            float(fee_per_lot),
+            float(spread_per_lot),
+            margin_policy == "skip_entry",
+        )
+    else:
+        eq_arr, pnl_arr, costs_arr, units_arr = _bt_loop_python(
+            px_arr,
+            units_arr_target,
+            lots_arr_target,
+            initial_capital=float(initial_capital),
+            leverage=leverage,
+            fee_bps=float(fee_bps),
+            slippage_bps=float(slippage_bps),
+            fee_per_lot=float(fee_per_lot),
+            spread_per_lot=float(spread_per_lot),
+            margin_policy=margin_policy,
+        )
 
-    for t, price in enumerate(px.to_numpy(dtype=float)):
-        desired_units = float(units_target.iloc[t])
-        desired_lots = float(lots.iloc[t])
-
-        is_entry = (prev_units == 0.0) and (desired_units != 0.0)
-        if lev is not None and is_entry and margin_policy == "skip_entry":
-            req_margin = abs(desired_units * price) / lev
-            if req_margin > eq:
-                desired_units = 0.0
-                desired_lots = 0.0
-
-        d_units = desired_units - prev_units
-        d_lots = desired_lots - prev_lots
-        
-        # Calculate costs
-        if use_abs_costs:
-            costs = abs(d_lots) * cost_per_lot
-        else:
-            costs = abs(d_units) * price * cost_rate_bps
-
-        d_price = price - prev_price
-        pnl = prev_units * d_price - costs
-
-        eq = eq + pnl
-
-        eq_series.append(eq)
-        pnl_series.append(pnl)
-        costs_series.append(costs)
-        units_series.append(desired_units)
-
-        prev_price = price
-        prev_units = desired_units
-        prev_lots = desired_lots
-
-    eq_s = pd.Series(eq_series, index=px.index, name="equity")
-    pnl_s = pd.Series(pnl_series, index=px.index, name="pnl")
-    costs_s = pd.Series(costs_series, index=px.index, name="costs")
-    units_s = pd.Series(units_series, index=px.index, name="units")
+    eq_s = pd.Series(eq_arr, index=px.index, name="equity")
+    pnl_s = pd.Series(pnl_arr, index=px.index, name="pnl")
+    costs_s = pd.Series(costs_arr, index=px.index, name="costs")
+    units_s = pd.Series(units_arr, index=px.index, name="units")
 
     eq_prev = eq_s.shift(1)
     ret = (pnl_s / eq_prev.replace(0.0, np.nan)).fillna(0.0)
