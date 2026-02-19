@@ -140,10 +140,10 @@ HTML_TEMPLATE = """<!doctype html>
     }}
     select:focus {{ outline: none; border-color: var(--accent); }}
 
-    .row { margin-top: 10px; }
-    label.check { display:flex; align-items:center; gap:10px; font-weight:500; cursor:pointer; }
-    label.check input { width: 16px; height: 16px; }
-    .note { margin-top: 10px; font-size: 12px; color: var(--muted); }
+    .row {{ margin-top: 10px; }}
+    label.check {{ display:flex; align-items:center; gap:10px; font-weight:500; cursor:pointer; }}
+    label.check input {{ width: 16px; height: 16px; }}
+    .note {{ margin-top: 10px; font-size: 12px; color: var(--muted); }}
 
     button {{
       width: 100%;
@@ -275,11 +275,11 @@ HTML_TEMPLATE = """<!doctype html>
     // Show current costs from config (embedded server-side at render time)
     const COSTS = {costs_json};
     const costsNote = document.getElementById('costs-note');
-    if (COSTS && (COSTS.fee_per_lot || COSTS.spread_per_lot)) {
-      costsNote.textContent = `Costs: fee_per_lot=${COSTS.fee_per_lot || 0}, spread_per_lot=${COSTS.spread_per_lot || 0}`;
-    } else {
+    if (COSTS && (COSTS.fee_per_lot || COSTS.spread_per_lot)) {{
+      costsNote.textContent = `Costs: fee_per_lot=${{COSTS.fee_per_lot || 0}}, spread_per_lot=${{COSTS.spread_per_lot || 0}}`;
+    }} else {{
       costsNote.textContent = 'Costs: fee_per_lot=0, spread_per_lot=0';
-    }
+    }}
 
     document.getElementById('backtest-form').addEventListener('submit', async function(e) {{
       e.preventDefault();
@@ -299,10 +299,10 @@ HTML_TEMPLATE = """<!doctype html>
       status.style.display = 'block';
       status.className = 'status running';
       status.textContent = 'Running backtest... (0s)';
-      const tick = setInterval(() => {
+      const tick = setInterval(() => {{
         const dt = Math.floor((Date.now() - t0) / 1000);
         status.textContent = 'Running backtest... (' + dt + 's)';
-      }, 500);
+      }}, 500);
       output.style.display = 'none';
       output.textContent = '';
       result.innerHTML = '';
@@ -316,7 +316,7 @@ HTML_TEMPLATE = """<!doctype html>
             'breakdown=' + encodeURIComponent(breakdown),
             'record_executions=' + (recordExecutions ? '1' : '0'),
           ].join('&')
-        });
+        }});
         
         const text = await resp.text();
         
@@ -332,20 +332,20 @@ HTML_TEMPLATE = """<!doctype html>
         clearInterval(tick);
         const dt = Math.floor((Date.now() - t0) / 1000);
 
-        if (resultHtml.includes('data-status="success"')) {
+        if (resultHtml.includes('data-status="success"')) {{
           status.className = 'status success';
           status.textContent = '✓ Done in ' + dt + 's';
           result.innerHTML = resultHtml;
-        } else {
+        }} else {{
           status.className = 'status error';
           status.textContent = '✗ Failed (' + dt + 's)';
           result.innerHTML = resultHtml;
-        }
-      } catch (err) {
+        }}
+      }} catch (err) {{
         clearInterval(tick);
         status.className = 'status error';
         status.textContent = '✗ Error: ' + err.message;
-      }
+      }}
       
       btn.disabled = false;
       btn.textContent = 'Run Backtest';
