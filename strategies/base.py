@@ -457,24 +457,23 @@ class StrategyBase:
             margin_policy=config.margin_policy,
         )
 
-        # Compute metrics
-        equity = df["equity"]
-        returns = df["returns_net"]
+        # Compute metrics (canonical helpers live in quantlab.metrics)
+        from ..metrics import max_drawdown as _max_dd, sharpe as _sharpe, n_trades_from_position
+
+        equity = df["equity"].astype(float)
+        returns = df["returns_net"].astype(float)
 
         final_equity = float(equity.iloc[-1])
         total_return = (final_equity / config.initial_capital - 1.0) * 100
-        trade_count = int((df["position"].diff().abs() > 0).sum())
 
-        # Sharpe (annualized, assuming 5m bars = 12 * 24 * 252 = 72240 bars/year)
-        if returns.std() > 0:
-            sharpe = float(returns.mean() / returns.std() * (252 * 24 * 12) ** 0.5)
-        else:
-            sharpe = 0.0
+        # Canonical trade count: contiguous position segments
+        trade_count = int(n_trades_from_position(df, pos_col="position"))
 
-        # Max drawdown
-        rolling_max = equity.cummax()
-        drawdown = (equity - rolling_max) / rolling_max
-        max_drawdown = float(drawdown.min()) * 100
+        # Sharpe annualization: assume 5-minute bars for now (matches engine output)
+        sharpe = float(_sharpe(returns, freq="5MIN"))
+
+        # Max drawdown as percent
+        max_drawdown = float(_max_dd(equity)) * 100
 
         # Extract trades
         trades = self._extract_trades(df)
