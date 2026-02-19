@@ -1,6 +1,6 @@
 import pandas as pd
 
-from quantlab.metrics import max_drawdown, sharpe
+from quantlab.engine.metrics import max_drawdown, sharpe
 
 
 def test_max_drawdown_simple():

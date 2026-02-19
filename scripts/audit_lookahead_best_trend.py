@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from quantlab.backtest import backtest_positions_account_margin, prices_to_returns
-from quantlab.metrics import sharpe, max_drawdown
+from quantlab.engine.backtest import backtest_positions_account_margin, prices_to_returns
+from quantlab.engine.metrics import sharpe, max_drawdown
 
 
 def _load_daily_paths(root: Path, symbol: str, start: dt.date, end: dt.date) -> list[str]:

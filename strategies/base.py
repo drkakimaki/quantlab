@@ -8,7 +8,7 @@ from typing import Protocol, runtime_checkable, Any
 import pandas as pd
 import numpy as np
 
-from ..backtest import backtest_positions_account_margin
+from ..engine.backtest import backtest_positions_account_margin
 
 
 @dataclass
@@ -457,8 +457,8 @@ class StrategyBase:
             margin_policy=config.margin_policy,
         )
 
-        # Compute metrics (canonical helpers live in quantlab.metrics)
-        from ..metrics import max_drawdown as _max_dd, sharpe as _sharpe, n_trades_from_position
+        # Compute metrics (canonical helpers live in quantlab.engine.metrics)
+        from ..engine.metrics import max_drawdown as _max_dd, sharpe as _sharpe, n_trades_from_position
 
         equity = df["equity"].astype(float)
         returns = df["returns_net"].astype(float)

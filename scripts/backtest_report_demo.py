@@ -8,7 +8,7 @@ from __future__ import annotations
 import pandas as pd
 
 from quantlab import ReportConfig, positions_from_signal, prices_to_returns, write_html_report
-from quantlab.backtest import backtest_positions_account_margin
+from quantlab.engine.backtest import backtest_positions_account_margin
 
 
 def main():

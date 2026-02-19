@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .metrics import (
+from .engine.metrics import (
     sharpe,
     avg_win_loss_from_position,
     profit_factor_from_position,
@@ -51,7 +51,7 @@ def _safe_float(x) -> float:
         return float("nan")
 
 
-# (trade metric helpers live in quantlab.metrics)
+# (trade metric helpers live in quantlab.engine.metrics)
 
 
 def _fmt_ts(ts: pd.Timestamp) -> str:
