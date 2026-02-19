@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .engine.metrics import (
+from ..engine.metrics import (
     sharpe,
     avg_win_loss_from_position,
     profit_factor_from_position,
