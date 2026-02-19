@@ -1,5 +1,7 @@
 # Quantlab - Trading Strategy Backtesting
 
+Repo: https://github.com/drkakimaki/quantlab
+
 Modular backtesting with Strategy classes, composable gates, and unified engine.
 
 ## File Structure
