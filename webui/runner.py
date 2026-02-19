@@ -20,6 +20,7 @@ from ..strategies import (
 from ..data.resample import load_dukascopy_ohlc
 from ..time_filter import EventWindow, build_allow_mask_from_events
 from .. import report_periods_equity_only
+from .periods import build_periods
 
 
 def load_period_data(
@@ -117,13 +118,13 @@ def run_backtest(strategy_id: str) -> tuple[bool, str, Path]:
     info = strategies[strategy_id]
     
     try:
-        # Define periods
-        periods = [
-            ("2021-2022", dt.date(2021, 1, 1), dt.date(2022, 12, 31)),
-            ("2023-2025", dt.date(2023, 1, 1), dt.date(2025, 12, 31)),
-            ("2026", dt.date(2026, 1, 1), dt.date.today()),
-        ]
-        
+        # Define periods (config-driven)
+        cfg_path = WORKSPACE / "quantlab/configs/trend_based/current.yaml"
+        with open(cfg_path) as f:
+            cfg = yaml.safe_load(f) or {}
+
+        periods = build_periods(cfg)
+
         config = BacktestConfig()
         
         # Run based on strategy type
