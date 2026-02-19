@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+# (dataclass not used)
 
 import numpy as np
 import pandas as pd
@@ -69,14 +69,6 @@ def sharpe(returns, freq: str = "B") -> float:
     return float(np.sqrt(af) * mu / sig)
 
 
-def volatility(returns, freq: str = "B") -> float:
-    r = _to_series(returns).dropna()
-    if r.empty:
-        return float("nan")
-    af = annualization_factor(freq)
-    return float(np.sqrt(af) * r.std(ddof=1))
-
-
 def max_drawdown(equity) -> float:
     e = _to_series(equity).dropna()
     if e.empty:
@@ -86,33 +78,7 @@ def max_drawdown(equity) -> float:
     return float(dd.min())
 
 
-def cagr(equity, freq: str = "B") -> float:
-    e = _to_series(equity).dropna()
-    if len(e) < 2:
-        return float("nan")
-    af = annualization_factor(freq)
-    n_periods = len(e) - 1
-    years = n_periods / af
-    if years <= 0:
-        return float("nan")
-    return float(e.iloc[-1] ** (1.0 / years) - 1.0)
-
-
-@dataclass(frozen=True)
-class PerformanceSummary:
-    cagr: float
-    vol: float
-    sharpe: float
-    max_drawdown: float
-
-
-def performance_summary(returns, equity, freq: str = "B") -> PerformanceSummary:
-    return PerformanceSummary(
-        cagr=cagr(equity, freq=freq),
-        vol=volatility(returns, freq=freq),
-        sharpe=sharpe(returns, freq=freq),
-        max_drawdown=max_drawdown(equity),
-    )
+# (removed) CAGR / volatility / performance_summary wrapper — kept metrics minimal.
 
 
 # --- Trade-level metrics (canonical definition) ---

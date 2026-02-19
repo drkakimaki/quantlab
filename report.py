@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import io
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .metrics import PerformanceSummary, performance_summary
+from .metrics import sharpe, max_drawdown
 
 
 @dataclass(frozen=True)
@@ -76,8 +76,11 @@ def write_html_report(
     r = bt[cfg.returns_col].astype(float)
     eq = bt[cfg.equity_col].astype(float)
 
-    summ = performance_summary(r, eq, freq=cfg.freq)
-    summ_d = {k: _safe_float(v) for k, v in asdict(summ).items()}
+    # Core metrics (minimal set)
+    summ_d = {
+        "sharpe": _safe_float(sharpe(r, freq=cfg.freq)),
+        "max_drawdown": _safe_float(max_drawdown(eq)),
+    }
 
     # Drawdown
     peak = eq.cummax()
@@ -164,8 +167,6 @@ def write_html_report(
   <div class=\"sub\">Period: {start} → {end} · Bars: {len(bt):,} · Freq: {cfg.freq}</div>
 
   <div class=\"grid\">
-    <div class=\"card\"><div class=\"k\">CAGR</div><div class=\"v\">{fmt(summ_d['cagr'])}</div></div>
-    <div class=\"card\"><div class=\"k\">Vol</div><div class=\"v\">{fmt(summ_d['vol'])}</div></div>
     <div class=\"card\"><div class=\"k\">Sharpe</div><div class=\"v\">{fmt(summ_d['sharpe'])}</div></div>
     <div class=\"card\"><div class=\"k\">Max drawdown</div><div class=\"v\">{fmt(summ_d['max_drawdown'])}</div></div>
   </div>
@@ -236,9 +237,9 @@ def write_html_report_periods(
 
         r = bt[cfg.returns_col].astype(float)
         eq = bt[cfg.equity_col].astype(float)
-        summ = performance_summary(r, eq, freq=cfg.freq)
-
-        rows.append((name, float(res.pnl), float(summ.max_drawdown), float(summ.sharpe), int(res.n_trades)))
+        s = float(sharpe(r, freq=cfg.freq))
+        dd = float(max_drawdown(eq))
+        rows.append((name, float(res.pnl), dd, s, int(res.n_trades)))
 
         # Plot (downsample): equity only
         bt_plot = _downsample(bt, cfg.max_plot_points)

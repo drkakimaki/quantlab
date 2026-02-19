@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from quantlab.backtest import backtest_positions_account_margin, prices_to_returns
-from quantlab.metrics import performance_summary
+from quantlab.metrics import sharpe, max_drawdown
 
 
 def _load_daily_paths(root: Path, symbol: str, start: dt.date, end: dt.date) -> list[str]:
@@ -261,7 +261,8 @@ def bt_from_positions(px: pd.Series, pos_size: pd.Series, *, lag: int) -> pd.Dat
 
 
 def metrics_for_bt(period: str, variant: str, bt: pd.DataFrame) -> Metrics:
-    summ = performance_summary(bt["returns_net"], bt["equity"], freq="5MIN")
+    s = float(sharpe(bt["returns_net"], freq="5MIN"))
+    dd = float(max_drawdown(bt["equity"]))
     pnl_pct = (float(bt["equity"].iloc[-1]) / 1000.0 - 1.0) * 100.0
     peak = bt["equity"].cummax()
     maxdd_pct = float((bt["equity"] / peak - 1.0).min()) * 100.0

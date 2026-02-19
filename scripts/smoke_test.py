@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from quantlab import performance_summary, positions_from_signal
+from quantlab.metrics import sharpe, max_drawdown
+from quantlab import positions_from_signal
 from quantlab.backtest import backtest_positions_account_margin
 
 
@@ -31,7 +32,12 @@ def main():
         margin_policy="allow_negative",
     )
 
-    print(performance_summary(bt))
+    r = bt["returns_net"]
+    eq = bt["equity"]
+    print({
+        "sharpe": float(sharpe(r, freq="D")),
+        "max_drawdown": float(max_drawdown(eq)),
+    })
 
 
 if __name__ == "__main__":
