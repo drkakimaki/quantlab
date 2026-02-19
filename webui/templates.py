@@ -103,15 +103,17 @@ HTML_TEMPLATE = """<!doctype html>
   <title>Quantlab Backtest UI</title>
   <style>
     :root {{
-      --fg:#0f172a;
-      --muted:#64748b;
-      --bg:#f6f7fb;
-      --border:#e2e8f0;
-      --card:#ffffff;
-      --accent:#2563eb;
-      --accent-hover:#1d4ed8;
-      --success:#059669;
-      --error:#dc2626;
+      /* Dark mode defaults */
+      --fg:#e5e7eb;
+      --muted:#9ca3af;
+      --bg:#0b1220;
+      --border:#243044;
+      --card:#111a2b;
+      --card2:#0f172a;
+      --accent:#60a5fa;
+      --accent-hover:#93c5fd;
+      --success:#34d399;
+      --error:#f87171;
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -132,7 +134,7 @@ HTML_TEMPLATE = """<!doctype html>
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     }}
     
     label {{ display: block; font-weight: 500; margin-bottom: 8px; }}
@@ -142,7 +144,8 @@ HTML_TEMPLATE = """<!doctype html>
       font-size: 15px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: white;
+      background: var(--card2);
+      color: var(--fg);
       cursor: pointer;
     }}
     select:focus {{ outline: none; border-color: var(--accent); }}
@@ -156,16 +159,16 @@ HTML_TEMPLATE = """<!doctype html>
       width: 100%;
       padding: 12px 16px;
       font-size: 15px;
-      font-weight: 500;
-      color: white;
+      font-weight: 600;
+      color: #07101d;
       background: var(--accent);
-      border: none;
-      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
       cursor: pointer;
       margin-top: 16px;
     }}
-    button:hover {{ background: var(--accent-hover); }}
-    button:disabled {{ background: var(--muted); cursor: not-allowed; }}
+    button:hover {{ filter: brightness(1.05); }}
+    button:disabled {{ background: #334155; color: #94a3b8; cursor: not-allowed; }}
     
     .status {{
       margin-top: 16px;
@@ -179,10 +182,11 @@ HTML_TEMPLATE = """<!doctype html>
     
     .output {{
       margin-top: 16px;
-      background: #1e1e1e;
-      color: #0f0;
+      background: #070b13;
+      color: #a7f3d0;
+      border: 1px solid rgba(255,255,255,0.08);
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 12px;
       max-height: 300px;

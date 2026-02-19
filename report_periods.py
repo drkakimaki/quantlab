@@ -172,13 +172,13 @@ def report_periods_equity_only(
         ax.grid(True, alpha=0.25)
 
         # Make the data region fill the vertical space without huge headroom.
-        ax.margins(x=0.01, y=0.02)
+        ax.margins(x=0.01, y=0.08)
         try:
             y0 = float(np.nanmin(eq.values))
             y1 = float(np.nanmax(eq.values))
             if np.isfinite(y0) and np.isfinite(y1) and y1 > y0:
-                # A bit more padding to avoid "over-zoom" look
-                pad = 0.05 * (y1 - y0)
+                # More padding: the default view was too "zoomed".
+                pad = 0.15 * (y1 - y0)
                 ax.set_ylim(y0 - pad, y1 + pad)
         except Exception:
             pass
@@ -307,13 +307,14 @@ def report_periods_equity_only(
   <title>{archetype}</title>
   <style>
     :root {{
-      --fg:#0f172a;
-      --muted:#64748b;
-      --bg:#f6f7fb;
-      --border:#e2e8f0;
-      --card:#ffffff;
-      --card2:#f8fafc;
-      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      /* Dark mode defaults */
+      --fg:#e5e7eb;
+      --muted:#9ca3af;
+      --bg:#0b1220;
+      --border:#223047;
+      --card:#111a2b;
+      --card2:#0f172a;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }}
 
@@ -334,8 +335,8 @@ def report_periods_equity_only(
     }}
 
     .header {{
-      background: radial-gradient(1100px 500px at 20% -10%, rgba(59,130,246,0.10), rgba(255,255,255,0) 55%),
-                  linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      background: radial-gradient(900px 420px at 20% -20%, rgba(96,165,250,0.18), rgba(0,0,0,0) 55%),
+                  linear-gradient(180deg, rgba(17,26,43,0.98), rgba(15,23,42,0.92));
       border: 1px solid var(--border);
       border-radius: 20px;
       box-shadow: var(--shadow);
@@ -354,13 +355,13 @@ def report_periods_equity_only(
     .pill b {{ color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }}
 
     .charts-head {{ display:flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0; }}
-    .btn-small {{ font-size: 12px; padding: 6px 10px; border-radius: 10px; border:1px solid var(--border); background: white; cursor:pointer; }}
-    .btn-small:hover {{ background: #f1f5f9; }}
+    .btn-small {{ font-size: 12px; padding: 6px 10px; border-radius: 10px; border:1px solid var(--border); background: var(--card2); color: var(--fg); cursor:pointer; }}
+    .btn-small:hover {{ filter: brightness(1.08); }}
 
     .hidden {{ display:none; }}
 
     .lightbox {{ position: fixed; inset: 0; background: rgba(15,23,42,0.55); padding: 20px; z-index: 999; }}
-    .lightbox-inner {{ max-width: 1100px; margin: 0 auto; background: white; border-radius: 16px; border:1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }}
+    .lightbox-inner {{ max-width: 1100px; margin: 0 auto; background: var(--card); border-radius: 16px; border:1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }}
     .lightbox-head {{ display:flex; justify-content: space-between; align-items:center; padding: 10px 12px; border-bottom: 1px solid var(--border); }}
     .lightbox-title {{ font-size: 12px; color: var(--muted); }}
     .lightbox img {{ width: 100%; height: auto; display:block; }}
