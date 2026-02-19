@@ -6,8 +6,11 @@ __pycache__/
 # data (large / generated)
 data/
 
-# reports (generated)
+# reports (generated / bulky)
 reports/**/*.html
+reports/_archive_*/
+reports/**/raw/**
+*.parquet
 
 # editor / OS
 .vscode/
