@@ -1,0 +1,17 @@
+{
+  "stamp": "2026-02-14T232734Z",
+  "execute": true,
+  "archive_root": "/home/kakimaki/.openclaw/workspace/reports/_archive_2026-02-14T232734Z",
+  "n_plans": 1,
+  "result": {
+    "moved": [
+      {
+        "src": "/home/kakimaki/.openclaw/workspace/reports/trend_based/decisions/2026-02-15_loss_drawdown_deepdive/raw",
+        "dst": "/home/kakimaki/.openclaw/workspace/reports/_archive_2026-02-14T232734Z/trend_based_decisions_raw/2026-02-15_loss_drawdown_deepdive/raw",
+        "bytes_est": 10271586,
+        "status": "moved"
+      }
+    ],
+    "skipped": []
+  }
+}

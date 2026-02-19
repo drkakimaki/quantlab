@@ -1,0 +1,139 @@
+# Quantlab - Trading Strategy Backtesting
+
+Modular backtesting with Strategy classes, composable gates, and unified engine.
+
+## File Structure
+
+```
+quantlab/
+├── backtest.py              # Unified backtest engine
+├── strategies/              # Strategy classes + gates
+│   ├── base.py              # StrategyBase, BacktestResult
+│   ├── buy_and_hold.py
+│   ├── mean_reversion.py
+│   └── trend_following.py   # TrendStrategy, TrendStrategyWithGates, gates
+├── time_filter/             # FOMC/session blocking
+├── data/
+│   ├── dukascopy.py         # Tick download, 1s builder
+│   ├── resample.py          # 5m/15m mid + OHLC
+│   ├── download.py          # CLI: download + resample
+│   └── validate.py          # CLI: check integrity
+├── configs/trend_based/current.yaml
+├── webui/                   # Browser interface
+└── reports/
+```
+
+## Quick Start
+
+```bash
+.venv/bin/python quantlab/webui/backtest_ui.py --port 8080
+```
+
+## Strategy Classes
+
+| Class | Purpose |
+|-------|---------|
+| `BuyAndHoldStrategy` | Buy at start, hold to end |
+| `MeanReversionStrategy` | Z-score mean reversion |
+| `TrendStrategy` | Simple MA crossover |
+| `TrendStrategyWithGates` | Trend + composable filters |
+
+```python
+from quantlab.strategies import TrendStrategyWithGates, BacktestConfig
+
+strategy = TrendStrategyWithGates.from_config(config, allow_mask=fomc_mask)
+result = strategy.run_backtest(prices, context={
+    "bars_15m": bars_15m,
+    "prices_xag": xag_prices,
+    "prices_eur": eur_prices,
+})
+```
+
+## Composable Gates
+
+`TrendStrategyWithGates` applies: `base → HTF → EMASep → NoChop → Corr → TimeFilter → Risk`
+
+| Gate | Purpose |
+|------|---------|
+| `HTFConfirmGate` | 15m SMA alignment |
+| `EMASeparationGate` | EMA separation > k×ATR |
+| `NoChopGate` | Avoid choppy markets |
+| `CorrelationGate` | XAG/EUR correlation stability |
+| `TimeFilterGate` | FOMC force-flat windows |
+| `RiskGate` | Shock exits, segment TTL |
+
+Gate is ON when config block present, OFF when missing.
+
+## Data Management
+
+```bash
+# Download recent data
+.venv/bin/python quantlab/data/download.py --symbols XAUUSD XAGUSD EURUSD --days 7
+
+# Download specific period
+.venv/bin/python quantlab/data/download.py --symbol XAUUSD --start 2020-01-01 --end 2020-12-31
+
+# Validate integrity
+.venv/bin/python quantlab/data/validate.py
+```
+
+**Data formats:**
+| Folder | Columns |
+|--------|---------|
+| `dukascopy_1s` | ts, bid, ask, mid, spread |
+| `dukascopy_5m` | ts, bid, ask, mid, spread |
+| `dukascopy_5m_ohlc` | ts, open, high, low, close |
+| `dukascopy_15m` | ts, bid, ask, mid, spread |
+| `dukascopy_15m_ohlc` | ts, open, high, low, close |
+
+**Status:**
+- XAUUSD: 2020 (partial ~80%), 2021-2026 complete
+- XAGUSD, EURUSD: 2021-2026 complete
+- 5m OHLC: 2021-2026 (2020 pending resample)
+
+## Configuration
+
+`quantlab/configs/trend_based/current.yaml`:
+```yaml
+symbol: XAUUSD
+trend: {fast: 30, slow: 75}
+htf_confirm: {rule: "15min"}
+ema_sep: {ema_fast: 40, ema_slow: 300, sep_k: 0.05}
+nochop: {ema: 20, lookback: 40, min_closes: 24}
+corr: {logic: "or", xag: {min_abs: 0.10}, eur: {min_abs: 0.10}}
+time_filter: {kind: "fomc", mode: "force_flat"}
+costs: {fee_bps: 0.0, slippage_bps: 0.0}  # Currently zero-cost baseline
+```
+
+## Web UI
+
+Browser-based backtest runner at http://localhost:8080
+
+**Available strategies:**
+- Buy & Hold
+- Trend (MA 20/100) - baseline
+- Mean Reversion (Z-score)
+- Best Trend (all filters)
+
+## Development
+
+```bash
+.venv/bin/python quantlab/webui/backtest_ui.py --port 8080
+```
+
+- **API Key:** FRED_API_KEY for economic calendar
+- **Design:** Strategy classes with composable gates, single backtest engine
+
+## Reports
+
+```
+quantlab/reports/
+├── baselines/           # Simple strategy reports
+│   ├── buy_and_hold.html
+│   ├── trend.html
+│   └── mean_reversion.html
+├── trend_based/         # Best trend variants
+│   ├── best_trend.html
+│   ├── BEST_TREND_STRATEGY.md
+│   └── decisions/       # Decision bundles (promoted configs)
+```

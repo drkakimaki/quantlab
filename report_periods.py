@@ -1,0 +1,525 @@
+from __future__ import annotations
+
+import base64
+import io
+from dataclasses import dataclass
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from .metrics import sharpe
+
+
+@dataclass(frozen=True)
+class PeriodRow:
+    period: str
+    pnl: float
+    max_drawdown: float
+    sharpe: float
+    win_rate: float
+    profit_factor: float
+    avg_win: float
+    avg_loss: float
+    n_trades: int
+    start: str
+    end: str
+
+
+def _fig_to_data_uri(fig) -> str:
+    bio = io.BytesIO()
+    # Slightly lower DPI keeps files smaller and helps 3-up layout.
+    # Avoid bbox_inches='tight' here: it can introduce inconsistent padding/cropping
+    # across periods (and makes charts feel "flattened").
+    fig.savefig(bio, format="png", dpi=130)
+    plt.close(fig)
+    b64 = base64.b64encode(bio.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
+def _safe_float(x) -> float:
+    try:
+        return float(x)
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
+def _trade_returns_from_position(
+    bt: pd.DataFrame,
+    *,
+    pos_col: str = "position",
+    returns_col: str = "returns_net",
+) -> pd.Series:
+    """Compute compounded return per trade (as decimal, not %).
+
+    Trade = contiguous segment where position != 0.
+    """
+    if bt is None or len(bt) == 0:
+        return pd.Series(dtype=float)
+    if pos_col not in bt.columns or returns_col not in bt.columns:
+        return pd.Series(dtype=float)
+
+    pos = bt[pos_col].fillna(0.0).astype(float)
+    r = bt[returns_col].fillna(0.0).astype(float)
+
+    in_pos = pos != 0.0
+    if not bool(in_pos.any()):
+        return pd.Series(dtype=float)
+
+    prev_in_pos = in_pos.shift(1, fill_value=False)
+    entry = in_pos & (~prev_in_pos)
+    trade_id = entry.cumsum()
+
+    df = pd.DataFrame({"trade_id": trade_id, "in_pos": in_pos, "r": r})
+    df = df[df["in_pos"]].copy()
+    if df.empty:
+        return pd.Series(dtype=float)
+
+    # trade_return = exp(sum(log1p(r))) - 1
+    log_r = (1.0 + df["r"]).clip(lower=1e-12)
+    df["log1p_r"] = np.log(log_r)
+    trade_log = df.groupby("trade_id")["log1p_r"].sum()
+    return np.expm1(trade_log).astype(float)
+
+
+def _win_rate_from_position(bt: pd.DataFrame, *, pos_col: str = "position", returns_col: str = "returns_net") -> float:
+    trade_ret = _trade_returns_from_position(bt, pos_col=pos_col, returns_col=returns_col)
+    if trade_ret.empty:
+        return float("nan")
+    return float(100.0 * (trade_ret > 0.0).mean())
+
+
+def _profit_factor(bt: pd.DataFrame, *, pos_col: str = "position", returns_col: str = "returns_net") -> float:
+    """Profit factor computed on **per-trade** compounded returns.
+
+    PF = sum(trade_returns > 0) / abs(sum(trade_returns < 0))
+
+    Where trade_return is the compounded return over each contiguous segment
+    where position != 0.
+    """
+    trade_ret = _trade_returns_from_position(bt, pos_col=pos_col, returns_col=returns_col)
+    if trade_ret.empty:
+        return float("nan")
+
+    gp = float(trade_ret[trade_ret > 0.0].sum())
+    gl = float((-trade_ret[trade_ret < 0.0]).sum())
+    if gl <= 0.0:
+        return float("nan")
+    return gp / gl
+
+
+def _avg_win_loss_from_position(bt: pd.DataFrame, *, pos_col: str = "position", returns_col: str = "returns_net") -> tuple[float, float]:
+    """Return (avg_win%, avg_loss%) as percentages.
+
+    avg_loss% is negative.
+    """
+    trade_ret = _trade_returns_from_position(bt, pos_col=pos_col, returns_col=returns_col)
+    if trade_ret.empty:
+        return float("nan"), float("nan")
+
+    wins = trade_ret[trade_ret > 0.0]
+    losses = trade_ret[trade_ret < 0.0]
+
+    avg_win = float(wins.mean() * 100.0) if len(wins) else float("nan")
+    avg_loss = float(losses.mean() * 100.0) if len(losses) else float("nan")
+
+    return avg_win, avg_loss
+
+
+def _fmt_ts(ts: pd.Timestamp) -> str:
+    """Compact timestamp for report tables.
+
+    Prefer readability over full ISO. Drop timezone suffix like "+00:00".
+    """
+    try:
+        ts = pd.to_datetime(ts)
+        if getattr(ts, "tzinfo", None) is not None:
+            ts = ts.tz_convert("UTC")
+        return ts.strftime("%Y-%m-%d %H:%M")
+    except Exception:  # noqa: BLE001
+        return str(ts)
+
+
+def report_periods_equity_only(
+    *,
+    periods: dict[str, pd.DataFrame],
+    out_path: str | Path,
+    title: str,
+    freq: str,
+    initial_capital: float | dict[str, float],
+    returns_col: str = "returns_net",
+    equity_col: str = "equity",
+    n_trades: dict[str, int] | None = None,
+    win_rate: dict[str, float] | None = None,
+) -> Path:
+    """Single-file HTML report for multiple periods.
+
+    Table columns (as requested): PnL, Max Drawdown, Sharpe, Number of Trades.
+    One plot per period: equity curve.
+
+    PnL is computed as a *percent return* (equity_end - 1) * 100.
+
+    initial_capital can be:
+    - float: same capital for every period
+    - dict[str,float]: per-period capital (recommended when sizing is 1 lot and
+      entry price differs per period).
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    rows: list[PeriodRow] = []
+    charts: list[tuple[str, str | None]] = []
+
+    for name, bt in periods.items():
+        if bt is None or len(bt) == 0:
+            # Keep the slot so the page always shows all periods.
+            rows.append(
+                PeriodRow(
+                    period=name,
+                    pnl=float("nan"),
+                    max_drawdown=float("nan"),
+                    sharpe=float("nan"),
+                    win_rate=float("nan"),
+                    profit_factor=float("nan"),
+                    avg_win=float("nan"),
+                    avg_loss=float("nan"),
+                    n_trades=int((n_trades or {}).get(name, 0)),
+                    start="",
+                    end="",
+                )
+            )
+            charts.append((name, None))
+            continue
+        if returns_col not in bt.columns or equity_col not in bt.columns:
+            raise KeyError(f"Period {name!r} missing required columns")
+
+        bt = bt.copy()
+        bt.index = pd.to_datetime(bt.index)
+        bt = bt.sort_index()
+
+        r = bt[returns_col].astype(float)
+        eq = bt[equity_col].astype(float)
+
+        cap0 = float(initial_capital[name] if isinstance(initial_capital, dict) else initial_capital)
+        if cap0 <= 0:
+            cap0 = float(eq.iloc[0]) if len(eq) else 1.0
+
+        # Percent return for the period (relative to starting capital)
+        pnl = (float(eq.iloc[-1]) / cap0 - 1.0) * 100.0
+
+        peak = eq.cummax()
+        dd = (eq / peak) - 1.0
+        max_dd = float(dd.min()) * 100.0
+
+        s = float(sharpe(r, freq=freq))
+        if n_trades is None:
+            # Default trade count: contiguous position segments (entry+exit) approximated
+            # by counting position changes. This keeps reports usable even when callers
+            # don't pass precomputed trade counts.
+            execs = int((bt["position"].fillna(0.0).diff().abs() > 0).sum()) if "position" in bt.columns else 0
+            trades = int(execs // 2)
+        else:
+            trades = int(n_trades.get(name, 0))
+
+        wr = float(win_rate.get(name)) if (win_rate is not None and name in win_rate) else _win_rate_from_position(bt)
+        pf = _profit_factor(bt, pos_col="position", returns_col=returns_col)
+        avg_win, avg_loss = _avg_win_loss_from_position(bt)
+
+        rows.append(
+            PeriodRow(
+                period=name,
+                pnl=pnl,
+                max_drawdown=max_dd,
+                sharpe=s,
+                win_rate=wr,
+                profit_factor=pf,
+                avg_win=avg_win,
+                avg_loss=avg_loss,
+                n_trades=trades,
+                start=_fmt_ts(bt.index.min()),
+                end=_fmt_ts(bt.index.max()),
+            )
+        )
+
+        # Plot (compact). Reduce x-axis label clutter using ConciseDateFormatter.
+        fig, ax = plt.subplots(figsize=(4.9, 3.6))
+        ax.plot(eq.index, eq.values, lw=1.1)
+        # Title is rendered in HTML (chart-title). Avoid matplotlib title to reduce top whitespace.
+        ax.grid(True, alpha=0.25)
+
+        # Make the data region fill the vertical space without huge headroom.
+        ax.margins(x=0.01, y=0.0)
+        try:
+            y0 = float(np.nanmin(eq.values))
+            y1 = float(np.nanmax(eq.values))
+            if np.isfinite(y0) and np.isfinite(y1) and y1 > y0:
+                pad = 0.01 * (y1 - y0)
+                ax.set_ylim(y0 - pad, y1 + pad)
+        except Exception:
+            pass
+
+        # Give y-axis labels more room (avoid clipping/squishing).
+        ax.tick_params(axis="y", labelsize=8)
+        ax.tick_params(axis="x", labelsize=8)
+        fig.subplots_adjust(left=0.16, right=0.99, top=0.995, bottom=0.14)
+
+        try:
+            import matplotlib.dates as mdates
+
+            loc = mdates.AutoDateLocator(minticks=3, maxticks=5)
+            ax.xaxis.set_major_locator(loc)
+            ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+        except Exception:
+            pass
+
+        charts.append((name, _fig_to_data_uri(fig)))
+
+    def pct(x: float) -> str:
+        x = _safe_float(x)
+        if np.isnan(x):
+            return "nan"
+        return f"{x:,.2f}%"
+
+    def num(x: float) -> str:
+        x = _safe_float(x)
+        if np.isnan(x):
+            return "nan"
+        return f"{x:,.2f}"
+
+    def pf(x: float) -> str:
+        x = _safe_float(x)
+        if np.isnan(x):
+            return "nan"
+        if np.isinf(x):
+            return "inf"
+        return f"{x:,.2f}"
+
+    tr = []
+    for r in rows:
+        tr.append(
+            "<tr>"
+            f"<td class='period'>{r.period}</td>"
+            f"<td class='num mono'>{pct(r.pnl)}</td>"
+            f"<td class='num mono'>{pct(r.max_drawdown)}</td>"
+            f"<td class='num mono'>{num(r.sharpe)}</td>"
+            f"<td class='num mono'>{pct(r.win_rate)}</td>"
+            f"<td class='num mono'>{pf(r.profit_factor)}</td>"
+            f"<td class='num mono'>{pct(r.avg_win)}</td>"
+            f"<td class='num mono'>{pct(r.avg_loss)}</td>"
+            f"<td class='num mono'>{r.n_trades}</td>"
+            "</tr>"
+        )
+
+    charts_html = ["<div class='charts'>"]
+    for name, uri in charts:
+        if uri is None:
+            charts_html.append(
+                "<div class='chart'>"
+                f"<div class='chart-title'>Equity — {name}</div>"
+                "<div class='chart-missing'>No data for this period</div>"
+                "</div>"
+            )
+        else:
+            charts_html.append(
+                "<div class='chart'>"
+                f"<div class='chart-title'>Equity — {name}</div>"
+                f"<img alt='Equity {name}' src='{uri}' />"
+                "</div>"
+            )
+    charts_html.append("</div>")
+
+    archetype = title.split("(", 1)[0].strip() if title else "Report"
+    parts = title.split(" + ") if title else []
+    base_line = parts[0] if parts else title
+    hyper = parts[1:] if len(parts) > 1 else []
+
+    hyper_items = "".join([f"<li><span class='mono'>{p}</span></li>" for p in hyper])
+
+    html = f"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\"/>
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>
+  <title>{archetype}</title>
+  <style>
+    :root {{
+      --fg:#0f172a;
+      --muted:#64748b;
+      --bg:#f6f7fb;
+      --border:#e2e8f0;
+      --card:#ffffff;
+      --card2:#f8fafc;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }}
+
+    * {{ box-sizing: border-box; }}
+
+    body {{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--fg);
+      background:var(--bg);
+      margin: 0;
+      line-height: 1.45;
+    }}
+
+    .page {{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 26px 18px 34px;
+    }}
+
+    .header {{
+      background: radial-gradient(1100px 500px at 20% -10%, rgba(59,130,246,0.10), rgba(255,255,255,0) 55%),
+                  linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px 18px 16px;
+      margin-bottom: 14px;
+    }}
+
+    h1 {{ margin: 0 0 6px 0; font-size: 30px; letter-spacing: -0.6px; }}
+    .sub {{ color:var(--muted); font-size: 12px; }}
+    .subtitle {{ color:var(--muted); font-size: 13px; margin-top: 2px; }}
+
+    .section {{ margin: 14px 0; }}
+
+    .card {{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }}
+
+    .grid {{ display: grid; grid-template-columns: 1fr; gap: 12px; }}
+    @media (min-width: 900px) {{ .grid {{ grid-template-columns: 1.2fr 0.8fr; }} }}
+
+    .box {{ padding: 14px 14px; }}
+    .box h2 {{ margin: 0 0 10px 0; font-size: 14px; color: var(--fg); letter-spacing: -0.2px; }}
+
+    .kv {{
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 10px;
+    }}
+    .kv .mono {{ font-family: var(--mono); font-size: 12px; line-height: 1.45; }}
+    ul.hyper {{ margin: 8px 0 0 18px; padding: 0; }}
+    ul.hyper li {{ margin: 4px 0; }}
+
+    table {{ border-collapse: separate; border-spacing: 0; width: 100%; }}
+    th, td {{ border-bottom: 1px solid var(--border); padding: 10px 12px; text-align: left; }}
+    th {{
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--card2);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }}
+
+    tbody tr:nth-child(even) td {{ background: rgba(248, 250, 252, 0.40); }}
+    tbody tr:hover td {{ background: rgba(226, 232, 240, 0.45); }}
+
+    td.num {{ font-variant-numeric: tabular-nums; text-align: right; }}
+    td.small, .small {{ font-size: 12px; color: var(--muted); }}
+    .mono {{ font-family: var(--mono); font-variant-numeric: tabular-nums; }}
+    td.period {{ font-weight: 600; }}
+
+    /* Charts row: force 3 charts horizontally; allow horizontal scroll on small screens */
+    .charts {{ display: flex; gap: 14px; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; padding-bottom: 6px; }}
+    .chart {{
+      flex: 0 0 calc(33.333% - 10px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      min-width: 340px;
+    }}
+    .chart-title {{ font-size: 12px; color: var(--muted); margin: 0 0 8px 2px; }}
+    .chart img {{
+      width: 100%;
+      height: auto;
+      max-height: 520px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      display: block;
+    }}
+    .chart-missing {{
+      height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      background: var(--card2);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      font-size: 12px;
+    }}
+
+    .footer {{ margin-top: 10px; }}
+  </style>
+</head>
+<body>
+  <div class='page'>
+    <div class='header'>
+      <h1>{archetype}</h1>
+      <div class='subtitle'>{base_line}</div>
+    </div>
+
+    <div class='section grid'>
+      <div class='card'>
+        <div class='box'>
+          <h2>Performance summary</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th class='num'>PnL</th>
+                <th class='num'>Max DD</th>
+                <th class='num'>Sharpe</th>
+                <th class='num'>Win Rate</th>
+                <th class='num'>Profit Factor</th>
+                <th class='num'>Avg Win</th>
+                <th class='num'>Avg Loss</th>
+                <th class='num'># Trades</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(tr)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class='card'>
+        <div class='box'>
+          <h2>Hyperparameters / modules</h2>
+          <div class='kv'>
+            <div class='mono'>{archetype}</div>
+            <div class='mono' style='margin-top:6px; color: var(--muted);'>Modules:</div>
+            <ul class='hyper'>
+              {hyper_items}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class='section'>
+      {''.join(charts_html)}
+    </div>
+
+    <div class='footer small'>Generated by quantlab.report_periods.report_periods_equity_only</div>
+  </div>
+</body>
+</html>
+"""
+
+    out_path.write_text(html, encoding="utf-8")
+    return out_path

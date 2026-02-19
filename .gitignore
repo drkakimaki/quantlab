@@ -1,0 +1,15 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# data (large / generated)
+data/
+
+# reports (generated)
+reports/**/*.html
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store

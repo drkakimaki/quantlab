@@ -1,0 +1,75 @@
+{
+  "created_utc": "2026-02-14T19:09:16.814908Z",
+  "event_time_utc": "19:00",
+  "fixed_params": {
+    "atr_n": 20,
+    "confirm_size_both": 2.0,
+    "confirm_size_one": 1.0,
+    "corr_filter": true,
+    "corr_flip_lookback_eur": 75,
+    "corr_flip_lookback_xag": 50,
+    "corr_logic": "or",
+    "corr_max_flips_eur": 5,
+    "corr_max_flips_xag": 0,
+    "corr_min_abs_eur": 0.1,
+    "corr_min_abs_xag": 0.1,
+    "corr_window_eur": 75,
+    "corr_window_xag": 40,
+    "ema_fast": 40,
+    "ema_sep_filter": true,
+    "ema_slow": 300,
+    "fast": 30,
+    "fee_bps": 0.0,
+    "htf_rule": "15min",
+    "nochop_ema": 20,
+    "nochop_filter": true,
+    "nochop_lookback": 40,
+    "nochop_min_closes": 24,
+    "sep_k": 0.05,
+    "slippage_bps": 0.0,
+    "slow": 75,
+    "time_entry_shift": 1
+  },
+  "fomc_days": "data/econ_calendar/fomc_decision_days.csv",
+  "modes": {
+    "force-flat": "force_flat",
+    "no-entry": "block_entry_hold_segment"
+  },
+  "n_configs": 50,
+  "note": "Production semantics: pass time_allow_mask into strategy; no post-trade filtering.",
+  "periods": {
+    "2021-2022": [
+      "2021-01-01",
+      "2022-12-31"
+    ],
+    "2023-2025": [
+      "2023-01-01",
+      "2025-12-31"
+    ],
+    "2026": [
+      "2026-01-01",
+      "2026-02-13"
+    ]
+  },
+  "space": {
+    "mode": [
+      "no-entry",
+      "force-flat"
+    ],
+    "post_h": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      3.0
+    ],
+    "pre_h": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      3.0
+    ]
+  },
+  "time_entry_shift": 1
+}

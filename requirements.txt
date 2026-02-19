@@ -1,0 +1,23 @@
+# Core numerical / data
+numpy
+pandas
+polars
+pyarrow
+scipy
+statsmodels
+scikit-learn
+numba
+
+# Utils / viz
+tqdm
+rich
+matplotlib
+seaborn
+plotly
+
+# Research UX
+jupyterlab
+ipykernel
+
+# Calendars
+pandas-market-calendars
