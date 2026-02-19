@@ -125,7 +125,11 @@ def run_backtest(strategy_id: str) -> tuple[bool, str, Path]:
 
         periods = build_periods(cfg)
 
-        config = BacktestConfig()
+        costs = cfg.get("costs", {}) or {}
+        config = BacktestConfig(
+            fee_per_lot=float(costs.get("fee_per_lot", 0.0) or 0.0),
+            spread_per_lot=float(costs.get("spread_per_lot", 0.0) or 0.0),
+        )
         
         # Run based on strategy type
         if info.strategy_type == "buy_and_hold":

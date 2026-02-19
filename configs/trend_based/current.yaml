@@ -26,8 +26,9 @@ periods:
     p3: { name: "2026", start: "2026-01-01", end: "today" }
 
 costs:
-  fee_bps: 0.0
-  slippage_bps: 0.0
+  # Absolute per-lot costs (per side)
+  fee_per_lot: 0.0
+  spread_per_lot: 0.0
 
 # Core trend signal
 trend:
