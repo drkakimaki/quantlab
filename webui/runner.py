@@ -102,7 +102,12 @@ def load_fomc_mask(
     return build_allow_mask_from_events(index, events=events)
 
 
-def run_backtest(strategy_id: str) -> tuple[bool, str, Path]:
+def run_backtest(
+    strategy_id: str,
+    *,
+    breakdown: str | None = None,  # three_block | yearly
+    record_executions: bool = False,
+) -> tuple[bool, str, Path]:
     """Run a backtest using Strategy classes.
     
     Args:
@@ -123,12 +128,20 @@ def run_backtest(strategy_id: str) -> tuple[bool, str, Path]:
         with open(cfg_path) as f:
             cfg = yaml.safe_load(f) or {}
 
+        # Optional breakdown override from UI
+        if breakdown in {"three_block", "yearly"}:
+            cfg = dict(cfg)
+            cfg_periods = dict(cfg.get("periods", {}) or {})
+            cfg_periods["mode"] = breakdown
+            cfg["periods"] = cfg_periods
+
         periods = build_periods(cfg)
 
         costs = cfg.get("costs", {}) or {}
         config = BacktestConfig(
             fee_per_lot=float(costs.get("fee_per_lot", 0.0) or 0.0),
             spread_per_lot=float(costs.get("spread_per_lot", 0.0) or 0.0),
+            record_executions=bool(record_executions),
         )
         
         # Run based on strategy type
@@ -320,3 +333,14 @@ def report_exists(strategy_id: str) -> bool:
     """Check if a report already exists."""
     path = get_report_path(strategy_id)
     return path is not None and path.exists()
+
+
+def report_mtime(strategy_id: str) -> float | None:
+    """Return report modification time (unix seconds) or None."""
+    path = get_report_path(strategy_id)
+    if path is None or not path.exists():
+        return None
+    try:
+        return path.stat().st_mtime
+    except Exception:
+        return None

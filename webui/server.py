@@ -69,7 +69,14 @@ class BacktestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Invalid strategy")
             return
         
-        success, output, report_path = run_backtest(strategy_id)
+        breakdown = params.get("breakdown", [""])[0] or None
+        record_exec = params.get("record_executions", [""])[0] in {"1", "true", "on", "yes"}
+
+        success, output, report_path = run_backtest(
+            strategy_id,
+            breakdown=breakdown,
+            record_executions=record_exec,
+        )
         response = render_result(success, output, strategy_id)
         
         self.send_response(200)

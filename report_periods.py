@@ -234,23 +234,62 @@ def report_periods_equity_only(
             "</tr>"
         )
 
-    charts_html = ["<div class='charts'>"]
-    for name, uri in charts:
+    # Top summary strip
+    total_trades = int(sum((r.n_trades or 0) for r in rows))
+    # Worst drawdown (most negative)
+    worst_dd = float(min((r.max_drawdown for r in rows if np.isfinite(r.max_drawdown)), default=float("nan")))
+    # Average sharpe across periods (simple mean)
+    sh_list = [r.sharpe for r in rows if np.isfinite(r.sharpe)]
+    avg_sharpe = float(np.mean(sh_list)) if sh_list else float("nan")
+
+    # Charts HTML with show-all toggle and lightbox
+    charts_html = [
+        "<div class='charts-head'>"
+        "<button id='toggle-charts' class='btn-small' type='button'>Show all charts</button>"
+        "<div class='small'>Click a chart to zoom</div>"
+        "</div>",
+        "<div class='charts' id='charts'>",
+    ]
+
+    for i, (name, uri) in enumerate(charts):
+        hidden_class = " hidden" if i >= 3 else ""
         if uri is None:
             charts_html.append(
-                "<div class='chart'>"
-                f"<div class='chart-title'>Equity — {name}</div>"
-                "<div class='chart-missing'>No data for this period</div>"
-                "</div>"
+                "".join(
+                    [
+                        "<div class='chart{hc}'>".format(hc=hidden_class),
+                        f"<div class='chart-title'>Equity — {name}</div>",
+                        "<div class='chart-missing'>No data for this period</div>",
+                        "</div>",
+                    ]
+                )
             )
         else:
             charts_html.append(
-                "<div class='chart'>"
-                f"<div class='chart-title'>Equity — {name}</div>"
-                f"<img alt='Equity {name}' src='{uri}' />"
-                "</div>"
+                "".join(
+                    [
+                        "<div class='chart{hc}'>".format(hc=hidden_class),
+                        f"<div class='chart-title'>Equity — {name}</div>",
+                        f"<img class='zoomable' alt='Equity {name}' data-title='Equity — {name}' src='{uri}' />",
+                        "</div>",
+                    ]
+                )
             )
+
     charts_html.append("</div>")
+
+    # Lightbox modal
+    charts_html.append(
+        "<div id='lightbox' class='lightbox' style='display:none;'>"
+        "  <div class='lightbox-inner'>"
+        "    <div class='lightbox-head'>"
+        "      <div id='lightbox-title' class='lightbox-title'></div>"
+        "      <button id='lightbox-close' class='btn-small' type='button'>Close</button>"
+        "    </div>"
+        "    <img id='lightbox-img' alt='Zoomed chart' />"
+        "  </div>"
+        "</div>"
+    )
 
     archetype = title.split("(", 1)[0].strip() if title else "Report"
     parts = title.split(" + ") if title else []
@@ -308,6 +347,22 @@ def report_periods_equity_only(
     .subtitle {{ color:var(--muted); font-size: 13px; margin-top: 2px; }}
 
     .section {{ margin: 14px 0; }}
+
+    .summary-strip {{ display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px; }}
+    .pill {{ background: var(--card2); border:1px solid var(--border); border-radius: 999px; padding: 8px 10px; font-size: 12px; color: var(--muted); }}
+    .pill b {{ color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }}
+
+    .charts-head {{ display:flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0; }}
+    .btn-small {{ font-size: 12px; padding: 6px 10px; border-radius: 10px; border:1px solid var(--border); background: white; cursor:pointer; }}
+    .btn-small:hover {{ background: #f1f5f9; }}
+
+    .hidden {{ display:none; }}
+
+    .lightbox {{ position: fixed; inset: 0; background: rgba(15,23,42,0.55); padding: 20px; z-index: 999; }}
+    .lightbox-inner {{ max-width: 1100px; margin: 0 auto; background: white; border-radius: 16px; border:1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }}
+    .lightbox-head {{ display:flex; justify-content: space-between; align-items:center; padding: 10px 12px; border-bottom: 1px solid var(--border); }}
+    .lightbox-title {{ font-size: 12px; color: var(--muted); }}
+    .lightbox img {{ width: 100%; height: auto; display:block; }}
 
     .card {{
       background: var(--card);
@@ -393,30 +448,36 @@ def report_periods_equity_only(
     <div class='header'>
       <h1>{archetype}</h1>
       <div class='subtitle'>{base_line}</div>
+      <div class='summary-strip'>
+        <div class='pill'># Trades: <b>{total_trades:,}</b></div>
+        <div class='pill'>Avg Sharpe: <b>{num(avg_sharpe)}</b></div>
+        <div class='pill'>Worst MaxDD: <b>{pct(worst_dd)}</b></div>
+      </div>
     </div>
 
     <div class='section grid'>
       <div class='card'>
         <div class='box'>
           <h2>Performance summary</h2>
-          <table>
+          <table id='perf-table'>
             <thead>
               <tr>
-                <th>Period</th>
-                <th class='num'>PnL</th>
-                <th class='num'>Max DD</th>
-                <th class='num'>Sharpe</th>
-                <th class='num'>Win Rate</th>
-                <th class='num'>Profit Factor</th>
-                <th class='num'>Avg Win</th>
-                <th class='num'>Avg Loss</th>
-                <th class='num'># Trades</th>
+                <th data-sort='text'>Period</th>
+                <th class='num' data-sort='num'>PnL</th>
+                <th class='num' data-sort='num'>Max DD</th>
+                <th class='num' data-sort='num'>Sharpe</th>
+                <th class='num' data-sort='num'>Win Rate</th>
+                <th class='num' data-sort='num'>Profit Factor</th>
+                <th class='num' data-sort='num'>Avg Win</th>
+                <th class='num' data-sort='num'>Avg Loss</th>
+                <th class='num' data-sort='num'># Trades</th>
               </tr>
             </thead>
             <tbody>
               {''.join(tr)}
             </tbody>
           </table>
+          <div class='small' style='padding:10px 12px;'>Tip: click headers to sort.</div>
         </div>
       </div>
 
@@ -437,6 +498,92 @@ def report_periods_equity_only(
     <div class='section'>
       {''.join(charts_html)}
     </div>
+
+    <script>
+      // Sortable table
+      (function() {{
+        const table = document.getElementById('perf-table');
+        if (!table) return;
+        const tbody = table.querySelector('tbody');
+        const getCell = (tr, idx) => tr.children[idx].innerText.trim();
+        const parseNum = (s) => {{
+          // handles 'nan', 'inf', '12.34%', '1,234.56'
+          if (!s) return Number.NEGATIVE_INFINITY;
+          const x = s.replace(/%/g,'').replace(/,/g,'');
+          const v = parseFloat(x);
+          return Number.isFinite(v) ? v : Number.NEGATIVE_INFINITY;
+        }};
+
+        let sortState = {{ idx: -1, asc: false }};
+
+        table.querySelectorAll('thead th').forEach((th, idx) => {{
+          th.style.cursor = 'pointer';
+          th.addEventListener('click', () => {{
+            const type = th.getAttribute('data-sort') || 'text';
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const asc = (sortState.idx === idx) ? !sortState.asc : false;
+            sortState = {{ idx, asc }};
+
+            rows.sort((a,b) => {{
+              const A = getCell(a, idx);
+              const B = getCell(b, idx);
+              if (type === 'num') {{
+                return (parseNum(A) - parseNum(B)) * (asc ? 1 : -1);
+              }}
+              return A.localeCompare(B) * (asc ? 1 : -1);
+            }});
+
+            rows.forEach(r => tbody.appendChild(r));
+          }});
+        }});
+      }})();
+
+      // Charts show-all toggle
+      (function() {{
+        const btn = document.getElementById('toggle-charts');
+        const charts = document.getElementById('charts');
+        if (!btn || !charts) return;
+        btn.addEventListener('click', () => {{
+          const hidden = charts.querySelectorAll('.chart.hidden');
+          const anyHidden = hidden.length > 0;
+          hidden.forEach(el => el.classList.remove('hidden'));
+          if (anyHidden) {{
+            btn.textContent = 'Hide extra charts';
+            btn.dataset.state = 'shown';
+          }} else {{
+            // hide all after first 3
+            const all = charts.querySelectorAll('.chart');
+            all.forEach((el, i) => {{ if (i >= 3) el.classList.add('hidden'); }});
+            btn.textContent = 'Show all charts';
+            btn.dataset.state = 'hidden';
+          }}
+        }});
+      }})();
+
+      // Lightbox
+      (function() {{
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        const title = document.getElementById('lightbox-title');
+        const closeBtn = document.getElementById('lightbox-close');
+        if (!lb || !img || !title || !closeBtn) return;
+
+        function close() {{ lb.style.display = 'none'; }}
+
+        document.querySelectorAll('img.zoomable').forEach(el => {{
+          el.style.cursor = 'zoom-in';
+          el.addEventListener('click', () => {{
+            img.src = el.src;
+            title.textContent = el.dataset.title || el.alt || '';
+            lb.style.display = 'block';
+          }});
+        }});
+
+        closeBtn.addEventListener('click', close);
+        lb.addEventListener('click', (e) => {{ if (e.target === lb) close(); }});
+        document.addEventListener('keydown', (e) => {{ if (e.key === 'Escape') close(); }});
+      }})();
+    </script>
 
     <div class='footer small'>Generated by quantlab.report_periods.report_periods_equity_only</div>
   </div>
