@@ -56,17 +56,13 @@ def _bt_loop_python(
     *,
     initial_capital: float,
     leverage: float | None,
-    fee_bps: float,
-    slippage_bps: float,
     fee_per_lot: float,
     spread_per_lot: float,
     margin_policy: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Reference loop (pure python). Returns (equity, pnl, costs, units)."""
 
-    use_abs_costs = (fee_per_lot > 0.0) or (spread_per_lot > 0.0)
     cost_per_lot = float(fee_per_lot) + float(spread_per_lot)
-    cost_rate_bps = (float(fee_bps) + float(slippage_bps)) * 1e-4
 
     eq = float(initial_capital)
 
@@ -98,10 +94,7 @@ def _bt_loop_python(
         d_units = desired_units - prev_units
         d_lots = desired_lots - prev_lots
 
-        if use_abs_costs:
-            costs = abs(d_lots) * cost_per_lot
-        else:
-            costs = abs(d_units) * price * cost_rate_bps
+        costs = abs(d_lots) * cost_per_lot
 
         d_price = price - prev_price
         pnl = prev_units * d_price - costs
@@ -129,17 +122,13 @@ if _HAVE_NUMBA:
         lots_target,
         initial_capital,
         leverage,
-        fee_bps,
-        slippage_bps,
         fee_per_lot,
         spread_per_lot,
         margin_policy_skip_entry,
     ):
         """Numba-accelerated loop. Returns (equity, pnl, costs, units)."""
 
-        use_abs_costs = (fee_per_lot > 0.0) or (spread_per_lot > 0.0)
         cost_per_lot = fee_per_lot + spread_per_lot
-        cost_rate_bps = (fee_bps + slippage_bps) * 1e-4
 
         n = px.shape[0]
         eq_arr = np.empty(n, dtype=np.float64)
@@ -172,10 +161,7 @@ if _HAVE_NUMBA:
             d_units = desired_units - prev_units
             d_lots = desired_lots - prev_lots
 
-            if use_abs_costs:
-                costs = abs(d_lots) * cost_per_lot
-            else:
-                costs = abs(d_units) * price * cost_rate_bps
+            costs = abs(d_lots) * cost_per_lot
 
             d_price = price - prev_price
             pnl = prev_units * d_price - costs
@@ -202,8 +188,6 @@ def backtest_positions_account_margin(
     leverage: float | None = 20.0,
     lot_per_size: float = 0.01,
     contract_size_per_lot: float = 100.0,
-    fee_bps: float = 0.0,
-    slippage_bps: float = 0.0,
     fee_per_lot: float = 0.0,
     spread_per_lot: float = 0.0,
     lag: int = 1,
@@ -223,13 +207,8 @@ def backtest_positions_account_margin(
 
     Costs
     -----
-    Two modes:
-    
-    1. Absolute per-lot (recommended for real broker modeling):
+    Absolute per-lot (simple + realistic):
         costs = abs(d_lots) * (fee_per_lot + spread_per_lot)
-    
-    2. BPS of notional (legacy):
-        costs = abs(d_units) * price * (fee_bps + slippage_bps) * 1e-4
 
     Margin
     ------
@@ -294,8 +273,6 @@ def backtest_positions_account_margin(
             lots_arr_target,
             float(initial_capital),
             lev,
-            float(fee_bps),
-            float(slippage_bps),
             float(fee_per_lot),
             float(spread_per_lot),
             margin_policy == "skip_entry",
@@ -307,8 +284,6 @@ def backtest_positions_account_margin(
             lots_arr_target,
             initial_capital=float(initial_capital),
             leverage=leverage,
-            fee_bps=float(fee_bps),
-            slippage_bps=float(slippage_bps),
             fee_per_lot=float(fee_per_lot),
             spread_per_lot=float(spread_per_lot),
             margin_policy=margin_policy,

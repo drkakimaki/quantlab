@@ -43,9 +43,8 @@ class BacktestResult:
 class BacktestConfig:
     """Configuration for backtest execution.
 
-    Costs can be specified as:
-    - Absolute per-lot: fee_per_lot + spread_per_lot (recommended for real broker modeling)
-    - BPS of notional: fee_bps + slippage_bps (legacy, for rough estimates)
+    Costs are modeled as absolute per-lot costs:
+    - fee_per_lot + spread_per_lot
 
     For IC Markets Raw Spread (XAUUSD):
         fee_per_lot: 3.50      # $7 RT commission = $3.50/side
@@ -66,9 +65,7 @@ class BacktestConfig:
     fee_per_lot: float = 0.0       # $ per lot commission (per side)
     spread_per_lot: float = 0.0    # $ per lot spread cost (per side, since fills at mid)
 
-    # Legacy BPS costs (alternative)
-    fee_bps: float = 0.0
-    slippage_bps: float = 0.0
+    # (legacy bps costs removed)
 
 
 @dataclass
@@ -279,8 +276,7 @@ class StrategyBase:
             notional: abs(d_units) * fill_price
             fee_per_lot: Fee per lot
             spread_per_lot: Spread per lot
-            fee_bps: Fee rate (legacy)
-            slippage_bps: Slippage rate (legacy)
+            (legacy bps cost fields removed)
             costs: Total cost
             reason: Optional reason (later from gates/risk modules)
         
@@ -303,14 +299,11 @@ class StrategyBase:
             return pd.DataFrame(columns=[
                 "time", "prev_units", "new_units", "d_units",
                 "fill_price", "d_lots", "notional",
-                "fee_per_lot", "spread_per_lot", "fee_bps", "slippage_bps",
+                "fee_per_lot", "spread_per_lot",
                 "costs", "reason"
             ])
         
-        # Use absolute costs if specified
-        use_abs_costs = config.fee_per_lot > 0 or config.spread_per_lot > 0
         cost_per_lot = config.fee_per_lot + config.spread_per_lot
-        cost_rate_bps = (config.fee_bps + config.slippage_bps) * 1e-4
         
         records = []
         for t in pos.index[change_mask]:
@@ -329,10 +322,7 @@ class StrategyBase:
             fill_price = float(prices.loc[t])
             notional = abs(d_units) * fill_price
             
-            if use_abs_costs:
-                costs = abs(d_lots) * cost_per_lot
-            else:
-                costs = notional * cost_rate_bps
+            costs = abs(d_lots) * cost_per_lot
             
             records.append({
                 "time": t,
@@ -344,8 +334,6 @@ class StrategyBase:
                 "notional": notional,
                 "fee_per_lot": config.fee_per_lot,
                 "spread_per_lot": config.spread_per_lot,
-                "fee_bps": config.fee_bps,
-                "slippage_bps": config.slippage_bps,
                 "costs": costs,
                 "reason": None,  # Later from gates/risk modules
             })
@@ -446,8 +434,6 @@ class StrategyBase:
             leverage=config.leverage,
             lot_per_size=config.lot_per_size,
             contract_size_per_lot=config.contract_size_per_lot,
-            fee_bps=config.fee_bps,
-            slippage_bps=config.slippage_bps,
             fee_per_lot=config.fee_per_lot,
             spread_per_lot=config.spread_per_lot,
             lag=config.lag,
