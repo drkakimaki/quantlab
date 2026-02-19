@@ -41,9 +41,14 @@ class BacktestHandler(BaseHTTPRequestHandler):
     
     def _serve_report(self):
         """Serve a report file."""
-        strategy_id = self.path.split("/")[-1]
-        path = get_report_path(strategy_id)
-        
+        parsed = urllib.parse.urlparse(self.path)
+        strategy_id = parsed.path.split("/")[-1]
+        qs = urllib.parse.parse_qs(parsed.query)
+        mode = (qs.get("mode", [""])[0] or "").strip().lower()
+        variant = "yearly" if mode in {"yearly", "y"} else None
+
+        path = get_report_path(strategy_id, variant=variant)
+
         if path is None:
             self.send_error(404, "Unknown strategy")
         elif not path.exists():
@@ -77,7 +82,13 @@ class BacktestHandler(BaseHTTPRequestHandler):
             breakdown=breakdown,
             record_executions=record_exec,
         )
-        response = render_result(success, output, strategy_id)
+        # Point the user to the correct report variant
+        if report_path.name.endswith("_y" + report_path.suffix):
+            report_url = f"/report/{strategy_id}?mode=yearly"
+        else:
+            report_url = f"/report/{strategy_id}"
+
+        response = render_result(success, output, report_url)
         
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")

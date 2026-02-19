@@ -53,11 +53,18 @@ def _render_existing_reports(strategies: dict) -> str:
         if report_exists(sid):
             url = f"/report/{sid}"
             mt = _fmt_mtime(report_mtime(sid))
+
+            links = [f'<a href="{url}" target="_blank" rel="noopener">Open</a>']
+
+            if report_exists(sid, variant="yearly"):
+                url_y = f"/report/{sid}?mode=yearly"
+                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Open _y</a>')
+
             items.append(
                 f'<div class="strategy-item">'
                 f'<div class="left"><span class="name">{s.name}</span>'
                 f'<span class="meta">{mt}</span></div>'
-                f'<a href="{url}" target="_blank" rel="noopener">Open</a>'
+                f'<div class="links">' + " ".join(links) + '</div>'
                 f'</div>'
             )
 
@@ -67,22 +74,22 @@ def _render_existing_reports(strategies: dict) -> str:
     return "\n".join(items)
 
 
-def render_result(success: bool, output: str, strategy_id: str) -> str:
+def render_result(success: bool, output: str, report_url: str | None) -> str:
     """Render the result fragment for AJAX response."""
     import html
-    
+
     if success:
-        report_url = f"/report/{strategy_id}"
+        report_url = report_url or "#"
         result_html = (
             f'<div data-status="success"></div>'
-            f'<a href="{report_url}" class="result-link">View Report</a>'
+            f'<a href="{report_url}" class="result-link" target="_blank" rel="noopener">Open Report</a>'
         )
     else:
         result_html = (
             f'<div data-status="error"></div>'
             f'<p style="color:var(--error);">Backtest failed. Check output above.</p>'
         )
-    
+
     return f"{html.escape(output)}\n---RESULT---{result_html}"
 
 
@@ -217,6 +224,7 @@ HTML_TEMPLATE = """<!doctype html>
     .strategy-item .left {{ display:flex; flex-direction:column; gap:2px; min-width:0; }}
     .strategy-item .name {{ font-size: 14px; font-weight: 500; }}
     .strategy-item .meta {{ font-size: 12px; color: var(--muted); }}
+    .strategy-item .links {{ display:flex; gap: 10px; flex-wrap:wrap; justify-content:flex-end; }}
     .strategy-item a {{
       font-size: 13px;
       color: var(--accent);
@@ -239,7 +247,7 @@ HTML_TEMPLATE = """<!doctype html>
 
         <div style="height:12px"></div>
 
-        <label for="breakdown">Breakdown</label>
+        <label for="breakdown">Time setting</label>
         <select name="breakdown" id="breakdown">
           <option value="">Config default</option>
           <option value="three_block">3 blocks (21–22 / 23–25 / 26)</option>

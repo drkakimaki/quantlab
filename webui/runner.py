@@ -161,11 +161,14 @@ def run_backtest(
         else:
             return False, f"Unknown strategy type: {info.strategy_type}", Path(".")
         
-        # Generate report
-        report_path = info.output_dir / info.output
+        # Generate report (variant naming)
+        mode = (cfg.get("periods", {}) or {}).get("mode")
+        variant = "yearly" if mode == "yearly" else None
+
+        report_path = get_report_path(strategy_id, variant=variant) or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        _generate_report(results, info, report_path)
+
+        _generate_report(results, info, report_path, cfg=cfg)
         
         output = f"Generated: {report_path}"
         return True, output, report_path
@@ -294,6 +297,8 @@ def _generate_report(
     results: dict[str, tuple[pd.DataFrame, float, int]],
     info: StrategyInfo,
     report_path: Path,
+    *,
+    cfg: dict | None = None,
 ) -> None:
     """Generate HTML report."""
     periods = {name: df for name, (df, _, _) in results.items()}
@@ -308,6 +313,59 @@ def _generate_report(
     initial_capital = {name: 1000.0 for name in periods}
     
     title = info.name
+
+    # If best_trend, enrich the title so the report can display module/hyperparam values.
+    if info.strategy_type == "best_trend" and isinstance(cfg, dict):
+        hp: list[str] = []
+        try:
+            t = cfg.get("trend", {}) or {}
+            if "fast" in t and "slow" in t:
+                hp.append(f"trend.fast={t.get('fast')}")
+                hp.append(f"trend.slow={t.get('slow')}")
+
+            htf = cfg.get("htf_confirm", {}) or {}
+            if htf:
+                hp.append(f"htf_confirm.rule={htf.get('rule')}")
+
+            ema = cfg.get("ema_sep", {}) or {}
+            if ema:
+                hp.append(f"ema_sep.fast={ema.get('ema_fast')}")
+                hp.append(f"ema_sep.slow={ema.get('ema_slow')}")
+                hp.append(f"ema_sep.sep_k={ema.get('sep_k')}")
+
+            nc = cfg.get("nochop", {}) or {}
+            if nc:
+                hp.append(f"nochop.ema={nc.get('ema')}")
+                hp.append(f"nochop.lookback={nc.get('lookback')}")
+                hp.append(f"nochop.min_closes={nc.get('min_closes')}")
+
+            corr = cfg.get("corr", {}) or {}
+            if corr:
+                hp.append(f"corr.logic={corr.get('logic')}")
+                xag = corr.get("xag", {}) or {}
+                if xag:
+                    hp.append(f"corr.xag.window={xag.get('window')}")
+                    hp.append(f"corr.xag.min_abs={xag.get('min_abs')}")
+                eur = corr.get("eur", {}) or {}
+                if eur:
+                    hp.append(f"corr.eur.window={eur.get('window')}")
+                    hp.append(f"corr.eur.min_abs={eur.get('min_abs')}")
+
+            sizing = cfg.get("sizing", {}) or {}
+            if sizing:
+                hp.append(f"sizing.one={sizing.get('confirm_size_one')}")
+                hp.append(f"sizing.both={sizing.get('confirm_size_both')}")
+
+            risk = cfg.get("risk", {}) or {}
+            if risk:
+                hp.append(f"risk.shock_abs={risk.get('shock_exit_abs_ret')}")
+                hp.append(f"risk.ttl={risk.get('segment_ttl_bars')}")
+
+        except Exception:
+            hp = []
+
+        if hp:
+            title = title + " + " + " + ".join(hp)
     
     report_periods_equity_only(
         periods=periods,
@@ -319,25 +377,35 @@ def _generate_report(
     )
 
 
-def get_report_path(strategy_id: str) -> Path | None:
-    """Get the expected report path for a strategy."""
+def get_report_path(strategy_id: str, *, variant: str | None = None) -> Path | None:
+    """Get the expected report path for a strategy.
+
+    variant:
+      - None / "default": default report name
+      - "yearly": yearly breakdown report (suffix "_y")
+    """
     strategies = get_strategies()
     if strategy_id not in strategies:
         return None
-    
+
     info = strategies[strategy_id]
-    return info.output_dir / info.output
+    base = info.output_dir / info.output
+
+    if variant in {"yearly", "y"}:
+        return base.with_name(base.stem + "_y" + base.suffix)
+
+    return base
 
 
-def report_exists(strategy_id: str) -> bool:
+def report_exists(strategy_id: str, *, variant: str | None = None) -> bool:
     """Check if a report already exists."""
-    path = get_report_path(strategy_id)
+    path = get_report_path(strategy_id, variant=variant)
     return path is not None and path.exists()
 
 
-def report_mtime(strategy_id: str) -> float | None:
+def report_mtime(strategy_id: str, *, variant: str | None = None) -> float | None:
     """Return report modification time (unix seconds) or None."""
-    path = get_report_path(strategy_id)
+    path = get_report_path(strategy_id, variant=variant)
     if path is None or not path.exists():
         return None
     try:

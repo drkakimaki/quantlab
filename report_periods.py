@@ -172,12 +172,13 @@ def report_periods_equity_only(
         ax.grid(True, alpha=0.25)
 
         # Make the data region fill the vertical space without huge headroom.
-        ax.margins(x=0.01, y=0.0)
+        ax.margins(x=0.01, y=0.02)
         try:
             y0 = float(np.nanmin(eq.values))
             y1 = float(np.nanmax(eq.values))
             if np.isfinite(y0) and np.isfinite(y1) and y1 > y0:
-                pad = 0.01 * (y1 - y0)
+                # A bit more padding to avoid "over-zoom" look
+                pad = 0.05 * (y1 - y0)
                 ax.set_ylim(y0 - pad, y1 + pad)
         except Exception:
             pass
