@@ -60,7 +60,7 @@ def _bt_loop_python(
     spread_per_lot: float,
     margin_policy: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Reference loop (pure python). Returns (equity, pnl, costs, units)."""
+    """Reference loop (pure python). Returns (equity, pnl, costs, contract_units)."""
 
     cost_per_lot = float(fee_per_lot) + float(spread_per_lot)
 
@@ -126,7 +126,7 @@ if _HAVE_NUMBA:
         spread_per_lot,
         margin_policy_skip_entry,
     ):
-        """Numba-accelerated loop. Returns (equity, pnl, costs, units)."""
+        """Numba-accelerated loop. Returns (equity, pnl, costs, contract_units)."""
 
         cost_per_lot = fee_per_lot + spread_per_lot
 
@@ -201,8 +201,8 @@ def backtest_positions_account_margin(
     -----
     - Strategy emits a *size* series (e.g. 0/1/2 or -1/0/+1). We map to:
         lots = size * lot_per_size
-        units = lots * contract_size_per_lot
-    - PnL per bar: units_prev * (price[t] - price[t-1]) - costs
+        contract_units = lots * contract_size_per_lot
+    - PnL per bar: contract_units_prev * (price[t] - price[t-1]) - costs
 
     Costs
     -----
@@ -212,10 +212,10 @@ def backtest_positions_account_margin(
     Margin
     ------
     If leverage is not None:
-      required_margin = abs(units * price) / leverage
+      required_margin = abs(contract_units * price) / leverage
 
     On entry (flat -> nonzero) if required_margin > equity:
-      - skip_entry: remain flat (units=0)
+      - skip_entry: remain flat (contract_units=0)
       - allow_negative: allow (equity can go negative)
 
     Notes
@@ -244,12 +244,12 @@ def backtest_positions_account_margin(
     pos_disc = pos.rename("position").astype(float)
 
     lots = pos_disc * float(lot_per_size)
-    units_target = lots * float(contract_size_per_lot)
+    contract_units_target = lots * float(contract_size_per_lot)
 
     # --- Engine loop (python reference or numba accelerated) ---
 
     px_arr = px.to_numpy(dtype=np.float64)
-    units_arr_target = units_target.to_numpy(dtype=np.float64)
+    units_arr_target = contract_units_target.to_numpy(dtype=np.float64)
     lots_arr_target = lots.to_numpy(dtype=np.float64)
 
     if use_numba is None:
@@ -283,7 +283,7 @@ def backtest_positions_account_margin(
     eq_s = pd.Series(eq_arr, index=px.index, name="equity")
     pnl_s = pd.Series(pnl_arr, index=px.index, name="pnl")
     costs_s = pd.Series(costs_arr, index=px.index, name="costs")
-    units_s = pd.Series(units_arr, index=px.index, name="units")
+    contract_units_s = pd.Series(units_arr, index=px.index, name="contract_units")
 
     eq_prev = eq_s.shift(1)
     ret = (pnl_s / eq_prev.replace(0.0, np.nan)).fillna(0.0)
@@ -292,7 +292,7 @@ def backtest_positions_account_margin(
         {
             "position": pos_disc,
             "lots": lots.astype(float),
-            "units": units_s.astype(float),
+            "contract_units": contract_units_s.astype(float),
             "pnl": pnl_s.astype(float),
             "costs": costs_s.astype(float),
             "returns_net": ret.astype(float),
