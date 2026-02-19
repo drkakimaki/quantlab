@@ -141,19 +141,19 @@ def _score_candidate(
     return score, df
 
 
-def _run_best_trend_periods(
-    cfg: dict[str, Any],
-    *,
-    record_executions: bool = False,
-) -> dict[str, pd.DataFrame]:
-    periods = build_periods(cfg)
+@dataclass(frozen=True)
+class PreparedPeriod:
+    name: str
+    start: dt.date
+    end: dt.date
+    prices: pd.Series | pd.DataFrame
+    context: dict[str, Any]
+    allow_mask: Any
 
-    costs = cfg.get("costs", {}) or {}
-    bt_cfg = BacktestConfig(
-        fee_per_lot=float(costs.get("fee_per_lot", 0.0) or 0.0),
-        spread_per_lot=float(costs.get("spread_per_lot", 0.0) or 0.0),
-        record_executions=bool(record_executions),
-    )
+
+def _prepare_best_trend_inputs(cfg: dict[str, Any]) -> list[PreparedPeriod]:
+    """Load all data once per period for speed during sweeps."""
+    periods = build_periods(cfg)
 
     symbol = cfg.get("symbol", "XAUUSD")
     corr_symbol = cfg.get("corr_symbol", "XAGUSD")
@@ -166,7 +166,7 @@ def _run_best_trend_periods(
         )
     )
 
-    out: dict[str, pd.DataFrame] = {}
+    out: list[PreparedPeriod] = []
     for name, start, end in periods:
         data = load_period_data(
             symbol,
@@ -177,18 +177,46 @@ def _run_best_trend_periods(
             corr_symbol=corr_symbol,
             corr2_symbol=corr2_symbol,
         )
-
         allow_mask = load_fomc_mask(data["prices"].index, start, end, fomc_path, fomc_cfg)
-
-        strat = TrendStrategyWithGates.from_config(cfg, allow_mask=allow_mask)
         context = {
             "bars_15m": data.get("bars_15m"),
             "prices_xag": data.get("prices_xag"),
             "prices_eur": data.get("prices_eur"),
         }
+        out.append(
+            PreparedPeriod(
+                name=name,
+                start=start,
+                end=end,
+                prices=data["prices"],
+                context=context,
+                allow_mask=allow_mask,
+            )
+        )
+    return out
 
-        res = strat.run_backtest(data["prices"], context=context, config=bt_cfg)
-        out[name] = res.df
+
+def _run_best_trend_periods(
+    cfg: dict[str, Any],
+    *,
+    record_executions: bool = False,
+    prepared: list[PreparedPeriod] | None = None,
+) -> dict[str, pd.DataFrame]:
+    costs = cfg.get("costs", {}) or {}
+    bt_cfg = BacktestConfig(
+        fee_per_lot=float(costs.get("fee_per_lot", 0.0) or 0.0),
+        spread_per_lot=float(costs.get("spread_per_lot", 0.0) or 0.0),
+        record_executions=bool(record_executions),
+    )
+
+    if prepared is None:
+        prepared = _prepare_best_trend_inputs(cfg)
+
+    out: dict[str, pd.DataFrame] = {}
+    for p in prepared:
+        strat = TrendStrategyWithGates.from_config(cfg, allow_mask=p.allow_mask)
+        res = strat.run_backtest(p.prices, context=p.context, config=bt_cfg)
+        out[p.name] = res.df
 
     return out
 
@@ -279,6 +307,23 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _better(a: CandidateScore | None, b: CandidateScore) -> bool:
+    if a is None:
+        return True
+    # Feasible beats infeasible
+    if a.ok != b.ok:
+        return b.ok
+    # If both infeasible: smaller violation wins
+    if not b.ok:
+        if b.maxdd_violation != a.maxdd_violation:
+            return b.maxdd_violation < a.maxdd_violation
+    # Maximize PnL
+    if b.sum_pnl != a.sum_pnl:
+        return b.sum_pnl > a.sum_pnl
+    # Tiebreak: higher avg sharpe
+    return b.avg_sharpe > a.avg_sharpe
+
+
 def cmd_sweep(args: argparse.Namespace) -> int:
     sweep = yaml.safe_load(Path(args.sweep).read_text()) or {}
 
@@ -297,30 +342,62 @@ def cmd_sweep(args: argparse.Namespace) -> int:
 
     dd_cap = float(sweep.get("dd_cap_percent", args.dd_cap))
     top_k = int(sweep.get("top_k", 10))
+    initial_capital = float(sweep.get("initial_capital", 1000.0))
+
+    kind = (sweep.get("kind") or "grid").strip().lower()
 
     grid: dict[str, list[Any]] = sweep.get("grid", {}) or {}
     keys = list(grid.keys())
     if not keys:
         raise ValueError("sweeps.yaml grid is empty")
 
-    # Build cartesian product
-    from itertools import product
+    # Build candidate combos
+    combos: list[tuple[Any, ...]]
+    if kind == "grid":
+        from itertools import product
 
-    values_lists = [grid[k] for k in keys]
-    combos = list(product(*values_lists))
+        values_lists = [grid[k] for k in keys]
+        combos = list(product(*values_lists))
+    elif kind in {"sample", "random"}:
+        n = int(sweep.get("n_candidates", 0) or 0)
+        if n <= 0:
+            raise ValueError("For kind=sample, set n_candidates > 0")
+
+        import random
+
+        seen: set[tuple[Any, ...]] = set()
+        combos = []
+        attempts = 0
+        max_attempts = max(10_000, n * 50)
+        while len(combos) < n and attempts < max_attempts:
+            attempts += 1
+            combo = tuple(random.choice(grid[k]) for k in keys)
+            if combo in seen:
+                continue
+            seen.add(combo)
+            combos.append(combo)
+
+        if len(combos) < n:
+            print(f"WARN: only generated {len(combos)}/{n} unique combos (grid may be too small)")
+    else:
+        raise ValueError(f"Unknown sweep kind: {kind!r} (use grid|sample)")
 
     rows = []
     best_cfg = None
     best_score: CandidateScore | None = None
     best_results_df: pd.DataFrame | None = None
 
+    print("Preparing period data (cached for sweep)...", flush=True)
+    prepared = _prepare_best_trend_inputs(base_cfg)
+    print(f"Prepared {len(prepared)} periods. Starting {len(combos)} candidates...", flush=True)
+
     for idx, combo in enumerate(combos, 1):
         cfg = copy.deepcopy(base_cfg)
         for k, v in zip(keys, combo, strict=True):
             _set_in(cfg, k, v)
 
-        period_dfs = _run_best_trend_periods(cfg)
-        score, results_df = _score_candidate(period_dfs, dd_cap_percent=dd_cap, initial_capital=float(sweep.get("initial_capital", 1000.0)))
+        period_dfs = _run_best_trend_periods(cfg, prepared=prepared)
+        score, results_df = _score_candidate(period_dfs, dd_cap_percent=dd_cap, initial_capital=initial_capital)
 
         row = {"i": idx}
         for k, v in zip(keys, combo, strict=True):
@@ -336,32 +413,15 @@ def cmd_sweep(args: argparse.Namespace) -> int:
         )
         rows.append(row)
 
-        def better(a: CandidateScore | None, b: CandidateScore) -> bool:
-            if a is None:
-                return True
-            # Feasible beats infeasible
-            if a.ok != b.ok:
-                return b.ok
-            # If both infeasible: smaller violation wins
-            if not b.ok:
-                if b.maxdd_violation != a.maxdd_violation:
-                    return b.maxdd_violation < a.maxdd_violation
-            # Maximize PnL
-            if b.sum_pnl != a.sum_pnl:
-                return b.sum_pnl > a.sum_pnl
-            # Tiebreak: higher avg sharpe
-            return b.avg_sharpe > a.avg_sharpe
-
-        if better(best_score, score):
+        if _better(best_score, score):
             best_score = score
             best_cfg = cfg
             best_results_df = results_df
 
         if args.progress and (idx % int(args.progress) == 0):
-            print(f"{idx}/{len(combos)} done...")
+            print(f"{idx}/{len(combos)} done...", flush=True)
 
     df = pd.DataFrame(rows)
-    # Sort: ok first, then violation asc, then pnl desc
     df = df.sort_values(by=["ok", "maxdd_violation", "sum_pnl"], ascending=[False, True, False])
 
     topk_df = df.head(top_k).copy()
@@ -376,6 +436,8 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             "mode": (best_cfg.get("periods", {}) or {}).get("mode"),
             "dd_cap_percent": dd_cap,
             "objective": "sum_pnl subject_to worst_maxdd_cap",
+            "sweep_kind": kind,
+            "n_candidates": len(combos),
             "grid": {k: grid[k] for k in keys},
         }
         d = _write_decision_bundle(

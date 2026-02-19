@@ -1,0 +1,45 @@
+# Sample (random) sweep around the current best config.
+#
+# Objective: maximize sum(period PnL%) subject to worst MaxDD <= 20%.
+# Excludes: sizing.*, time_filter.*
+
+base: configs/trend_based/current.yaml
+mode: three_block
+kind: sample
+n_candidates: 600
+
+dd_cap_percent: 20
+initial_capital: 1000.0
+
+top_k: 40
+
+# Discrete search space. Keep ranges sane to avoid garbage configs.
+grid:
+  trend.fast: [20, 25, 30, 35, 40, 45]
+  trend.slow: [60, 70, 75, 80, 90, 100, 110]
+
+  htf_confirm.rule: [15min]
+
+  ema_sep.ema_fast: [20, 30, 40, 50, 60]
+  ema_sep.ema_slow: [150, 200, 250, 300, 350, 400]
+  ema_sep.atr_n: [14, 20, 30]
+  ema_sep.sep_k: [0.02, 0.03, 0.04, 0.05, 0.06, 0.08]
+
+  nochop.ema: [10, 15, 20, 25, 30]
+  nochop.lookback: [20, 30, 40, 50, 60]
+  nochop.min_closes: [12, 18, 24, 30]
+
+  corr.logic: [or]
+
+  corr.xag.window: [20, 30, 40, 60, 80]
+  corr.xag.min_abs: [0.05, 0.10, 0.15, 0.20]
+  corr.xag.flip_lookback: [30, 50, 75]
+  corr.xag.max_flips: [0, 2, 5]
+
+  corr.eur.window: [30, 50, 75, 100]
+  corr.eur.min_abs: [0.05, 0.10, 0.15, 0.20]
+  corr.eur.flip_lookback: [50, 75, 100]
+  corr.eur.max_flips: [0, 2, 5]
+
+  risk.shock_exit_abs_ret: [0.004, 0.005, 0.006, 0.007, 0.008]
+  risk.segment_ttl_bars: [0, 48, 96, 192]
