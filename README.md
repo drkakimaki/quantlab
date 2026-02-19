@@ -8,7 +8,10 @@ Modular backtesting with Strategy classes, composable gates, and unified engine.
 
 ```
 quantlab/
-├── backtest.py              # Unified backtest engine
+├── engine/                  # Backtest engine + metrics
+│   ├── backtest.py
+│   ├── metrics.py
+│   └── trades.py            # Canonical trade log
 ├── strategies/              # Strategy classes + gates
 │   ├── base.py              # StrategyBase, BacktestResult
 │   ├── buy_and_hold.py
@@ -42,6 +45,7 @@ quantlab/
 
 ```python
 from quantlab.strategies import TrendStrategyWithGates, BacktestConfig
+from quantlab.engine.trades import extract_trade_log
 
 strategy = TrendStrategyWithGates.from_config(config, allow_mask=fomc_mask)
 result = strategy.run_backtest(prices, context={
@@ -49,6 +53,9 @@ result = strategy.run_backtest(prices, context={
     "prices_xag": xag_prices,
     "prices_eur": eur_prices,
 })
+
+# Canonical trade log (one row per trade segment)
+trade_log = extract_trade_log(result.df)
 ```
 
 ## Composable Gates
