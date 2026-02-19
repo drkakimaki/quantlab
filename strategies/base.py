@@ -475,8 +475,10 @@ class StrategyBase:
         # Max drawdown as percent
         max_drawdown = float(_max_dd(equity)) * 100
 
-        # Extract trades
-        trades = self._extract_trades(df)
+        # Trade log (canonical)
+        from ..engine.trades import extract_trade_log
+
+        trades = extract_trade_log(df).to_dict(orient="records")
         
         # Extract executions if requested
         executions = None
