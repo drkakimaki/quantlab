@@ -171,17 +171,9 @@ def report_periods_equity_only(
         # Title is rendered in HTML (chart-title). Avoid matplotlib title to reduce top whitespace.
         ax.grid(True, alpha=0.25)
 
-        # Make the data region fill the vertical space without huge headroom.
-        ax.margins(x=0.01, y=0.08)
-        try:
-            y0 = float(np.nanmin(eq.values))
-            y1 = float(np.nanmax(eq.values))
-            if np.isfinite(y0) and np.isfinite(y1) and y1 > y0:
-                # More padding: the default view was too "zoomed".
-                pad = 0.15 * (y1 - y0)
-                ax.set_ylim(y0 - pad, y1 + pad)
-        except Exception:
-            pass
+        # Avoid manual y-limits entirely (they caused weird "zoom" feelings on flat-ish periods).
+        # Let matplotlib autoscale, but add a little margin so it doesn't hug min/max.
+        ax.margins(x=0.01, y=0.12)
 
         # Give y-axis labels more room (avoid clipping/squishing).
         ax.tick_params(axis="y", labelsize=8)
@@ -401,8 +393,9 @@ def report_periods_equity_only(
       z-index: 1;
     }}
 
-    tbody tr:nth-child(even) td {{ background: rgba(248, 250, 252, 0.40); }}
-    tbody tr:hover td {{ background: rgba(226, 232, 240, 0.45); }}
+    /* No zebra striping; keep uniform row background */
+    tbody td {{ background: transparent; }}
+    tbody tr:hover td {{ background: rgba(96,165,250,0.10); }}
 
     td.num {{ font-variant-numeric: tabular-nums; text-align: right; }}
     td.small, .small {{ font-size: 12px; color: var(--muted); }}
@@ -427,7 +420,7 @@ def report_periods_equity_only(
       max-height: 520px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: #fff;
+      background: var(--card2);
       display: block;
     }}
     .chart-missing {{
