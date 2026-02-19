@@ -171,9 +171,23 @@ def report_periods_equity_only(
         # Title is rendered in HTML (chart-title). Avoid matplotlib title to reduce top whitespace.
         ax.grid(True, alpha=0.25)
 
-        # Avoid manual y-limits entirely (they caused weird "zoom" feelings on flat-ish periods).
-        # Let matplotlib autoscale, but add a little margin so it doesn't hug min/max.
-        ax.margins(x=0.01, y=0.12)
+        # Y zoom: matplotlib autoscale + margins can still feel "too zoomed" on flat-ish periods
+        # because the y-range is tiny. We enforce a minimum absolute padding based on equity level.
+        ax.margins(x=0.01, y=0.05)
+        try:
+            y0 = float(np.nanmin(eq.values))
+            y1 = float(np.nanmax(eq.values))
+            if np.isfinite(y0) and np.isfinite(y1):
+                center = 0.5 * (y0 + y1)
+                span = y1 - y0
+                # pad is max of:
+                # - relative-to-span padding (for normal periods)
+                # - relative-to-level padding (for flat-ish periods)
+                # - an absolute floor (for small numbers)
+                pad = max(0.20 * span, 0.02 * abs(center), 1.0)
+                ax.set_ylim(y0 - pad, y1 + pad)
+        except Exception:
+            pass
 
         # Give y-axis labels more room (avoid clipping/squishing).
         ax.tick_params(axis="y", labelsize=8)
