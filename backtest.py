@@ -192,7 +192,6 @@ def backtest_positions_account_margin(
     spread_per_lot: float = 0.0,
     lag: int = 1,
     max_size: float | None = 2.0,
-    discrete_sizes: tuple[float, ...] = (0.0, 1.0, 2.0),
     margin_policy: str = "skip_entry",  # skip_entry | allow_negative
     use_numba: bool | None = None,
 ) -> pd.DataFrame:
@@ -241,16 +240,8 @@ def backtest_positions_account_margin(
     if lag:
         pos = pos.shift(int(lag)).fillna(0.0)
 
-    # Snap to discrete sizes.
-    ds = tuple(float(x) for x in discrete_sizes)
-    if len(ds) == 0:
-        raise ValueError("discrete_sizes must be non-empty")
-
-    arr = pos.to_numpy(dtype=float)
-    snapped = np.empty_like(arr)
-    for i, v in enumerate(arr):
-        snapped[i] = min(ds, key=lambda s: abs(v - s))
-    pos_disc = pd.Series(snapped, index=pos.index, name="position")
+    # Positions are expected to already be discrete (e.g. 0/1/2 or -1/0/+1).
+    pos_disc = pos.rename("position").astype(float)
 
     lots = pos_disc * float(lot_per_size)
     units_target = lots * float(contract_size_per_lot)
@@ -299,7 +290,7 @@ def backtest_positions_account_margin(
 
     return pd.DataFrame(
         {
-            "position": pos_disc.astype(float),
+            "position": pos_disc,
             "lots": lots.astype(float),
             "units": units_s.astype(float),
             "pnl": pnl_s.astype(float),

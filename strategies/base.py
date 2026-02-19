@@ -57,7 +57,6 @@ class BacktestConfig:
     contract_size_per_lot: float = 100.0
     lag: int = 1
     max_size: float = 2.0
-    discrete_sizes: tuple[float, ...] = (0.0, 1.0, 2.0)
     margin_policy: str = "skip_entry"
     record_executions: bool = False
 
@@ -180,7 +179,6 @@ class StrategyBase:
     """
 
     # Override in subclasses for strategy-specific defaults
-    default_discrete_sizes: tuple[float, ...] = (0.0, 1.0, 2.0)
     default_max_size: float = 2.0
 
     @property
@@ -416,7 +414,6 @@ class StrategyBase:
         """Default backtest implementation using the unified engine."""
         if config is None:
             config = BacktestConfig(
-                discrete_sizes=self.default_discrete_sizes,
                 max_size=self.default_max_size,
             )
 
@@ -438,7 +435,6 @@ class StrategyBase:
             spread_per_lot=config.spread_per_lot,
             lag=config.lag,
             max_size=config.max_size,
-            discrete_sizes=config.discrete_sizes,
             margin_policy=config.margin_policy,
         )
 

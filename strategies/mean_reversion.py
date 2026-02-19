@@ -21,7 +21,6 @@ class MeanReversionStrategy(StrategyBase):
     """
 
     # Mean reversion uses single lot sizing
-    default_discrete_sizes = (0.0, 1.0)
     default_max_size = 1.0
 
     def __init__(

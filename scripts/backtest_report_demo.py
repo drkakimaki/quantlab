@@ -26,11 +26,10 @@ def main():
         leverage=None,
         lot_per_size=1.0,
         contract_size_per_lot=1.0,
-        fee_bps=0.5,
-        slippage_bps=0.5,
+        fee_per_lot=0.0,
+        spread_per_lot=0.0,
         lag=0,  # already lagged by positions_from_signal
         max_size=1.0,
-        discrete_sizes=(0.0, 1.0),
         margin_policy="allow_negative",
     )
 

@@ -252,11 +252,10 @@ def bt_from_positions(px: pd.Series, pos_size: pd.Series, *, lag: int) -> pd.Dat
         leverage=20.0,
         lot_per_size=0.01,
         contract_size_per_lot=100.0,
-        fee_bps=0.0,
-        slippage_bps=0.0,
+        fee_per_lot=0.0,
+        spread_per_lot=0.0,
         lag=lag,
         max_size=2.0,
-        discrete_sizes=(0.0, 1.0, 2.0),
         margin_policy="skip_entry",
     )
 
