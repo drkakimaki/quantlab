@@ -56,9 +56,18 @@ def _render_existing_reports(strategies: dict) -> str:
 
             links = [f'<a href="{url}" target="_blank" rel="noopener">Open</a>']
 
+            # Trade breakdown report (if present)
+            if report_exists(sid, kind="trades"):
+                url_t = f"/trades/{sid}"
+                links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades</a>')
+
             if report_exists(sid, variant="yearly"):
                 url_y = f"/report/{sid}?mode=yearly"
                 links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Open _y</a>')
+
+            if report_exists(sid, variant="yearly", kind="trades"):
+                url_ty = f"/trades/{sid}?mode=yearly"
+                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Trades _y</a>')
 
             items.append(
                 f'<div class="strategy-item">'
@@ -124,7 +133,19 @@ HTML_TEMPLATE = """<!doctype html>
       padding: 24px;
       line-height: 1.5;
     }}
-    .container {{ max-width: 760px; margin: 0 auto; }}
+    .container {{ max-width: 1120px; margin: 0 auto; }}
+
+    .layout {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }}
+    @media (min-width: 980px) {{
+      .layout {{
+        grid-template-columns: 1.05fr 0.95fr;
+      }}
+    }}
     h1 {{ margin: 0 0 8px 0; font-size: 24px; }}
     .sub {{ color: var(--muted); margin-bottom: 24px; }}
     
@@ -133,7 +154,6 @@ HTML_TEMPLATE = """<!doctype html>
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
-      margin-bottom: 16px;
       box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     }}
     
@@ -208,11 +228,6 @@ HTML_TEMPLATE = """<!doctype html>
     }}
     .result-link:hover {{ background: #047857; }}
     
-    .strategies {{
-      margin-top: 24px;
-      padding-top: 24px;
-      border-top: 1px solid var(--border);
-    }}
     .strategies h2 {{ font-size: 16px; margin: 0 0 12px 0; }}
     .strategy-list {{ display: grid; gap: 8px; }}
     .strategy-item {{
@@ -241,48 +256,47 @@ HTML_TEMPLATE = """<!doctype html>
   <div class="container">
     <h1>📊 Quantlab Backtest</h1>
     <div class="sub">Run backtests and view reports</div>
-    
-    <div class="card">
-      <form id="backtest-form" method="post" action="/run">
-        <label for="strategy">Select Strategy</label>
-        <select name="strategy" id="strategy">
-          {strategy_options}
-        </select>
 
-        <div style="height:12px"></div>
+    <div class="layout">
+      <!-- LEFT: generator -->
+      <div class="card">
+        <form id="backtest-form" method="post" action="/run">
+          <label for="strategy">Select Strategy</label>
+          <select name="strategy" id="strategy">
+            {strategy_options}
+          </select>
 
-        <label for="breakdown">Time setting</label>
-        <select name="breakdown" id="breakdown">
-          <option value="">Config default</option>
-          <option value="three_block">3 blocks (21–22 / 23–25 / 26)</option>
-          <option value="yearly">Yearly (2021+)</option>
-        </select>
+          <div style="height:12px"></div>
 
-        <div class="row">
-          <label class="check">
-            <input type="checkbox" id="record_executions" />
-            <span>Record executions (debug)</span>
-          </label>
+          <label for="breakdown">Time setting</label>
+          <select name="breakdown" id="breakdown">
+            <option value="">Config default</option>
+            <option value="three_block">3 blocks (21–22 / 23–25 / 26)</option>
+            <option value="yearly">Yearly (2021+)</option>
+          </select>
+
+          <!-- record_executions checkbox removed (trade report is always generated) -->
+
+          <div class="note" id="costs-note"></div>
+
+          <button type="submit" id="run-btn">Run Backtest</button>
+        </form>
+
+        <div id="status" class="status" style="display:none;"></div>
+        <div id="output" class="output"></div>
+        <div id="result"></div>
+      </div>
+
+      <!-- RIGHT: existing reports -->
+      <div class="strategies card">
+        <h2>Existing Reports</h2>
+        <div class="strategy-list">
+          {existing_reports}
         </div>
-
-        <div class="note" id="costs-note"></div>
-
-        <button type="submit" id="run-btn">Run Backtest</button>
-      </form>
-      
-      <div id="status" class="status" style="display:none;"></div>
-      <div id="output" class="output"></div>
-      <div id="result"></div>
-    </div>
-    
-    <div class="strategies">
-      <h2>Existing Reports</h2>
-      <div class="strategy-list">
-        {existing_reports}
       </div>
     </div>
   </div>
-  
+
   <script>
     // Show current costs from config (embedded server-side at render time)
     const COSTS = {costs_json};
@@ -302,7 +316,7 @@ HTML_TEMPLATE = """<!doctype html>
       const result = document.getElementById('result');
       const strategy = document.getElementById('strategy').value;
       const breakdown = document.getElementById('breakdown').value;
-      const recordExecutions = document.getElementById('record_executions').checked;
+      const recordExecutions = false;
 
       const t0 = Date.now();
 
@@ -326,7 +340,7 @@ HTML_TEMPLATE = """<!doctype html>
           body: [
             'strategy=' + encodeURIComponent(strategy),
             'breakdown=' + encodeURIComponent(breakdown),
-            'record_executions=' + (recordExecutions ? '1' : '0'),
+            'record_executions=0',
           ].join('&')
         }});
         

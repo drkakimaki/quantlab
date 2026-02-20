@@ -20,6 +20,7 @@ from ..strategies import (
 from ..data.resample import load_dukascopy_ohlc
 from ..time_filter import EventWindow, build_allow_mask_from_events
 from .. import report_periods_equity_only
+from ..reporting.generate_trades_report import report_periods_trades_html
 from .periods import build_periods
 
 
@@ -165,12 +166,26 @@ def run_backtest(
         mode = (cfg.get("periods", {}) or {}).get("mode")
         variant = "yearly" if mode == "yearly" else None
 
-        report_path = get_report_path(strategy_id, variant=variant) or (info.output_dir / info.output)
+        report_path = get_report_path(strategy_id, variant=variant, kind="equity") or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
         _generate_report(results, info, report_path, cfg=cfg)
-        
-        output = f"Generated: {report_path}"
+
+        # Also generate trade breakdown report (convenience for debugging / diagnosis)
+        trades_path = get_report_path(strategy_id, variant=variant, kind="trades")
+        if trades_path is not None:
+            try:
+                periods_df = {name: df for name, (df, _, _) in results.items()}
+                report_periods_trades_html(
+                    periods=periods_df,
+                    out_path=trades_path,
+                    title=info.name + " — trade breakdown",
+                )
+            except Exception:
+                # Don't fail the whole UI run if trade report fails.
+                pass
+
+        output = f"Generated: {report_path}" + (f"\nGenerated: {trades_path}" if trades_path is not None else "")
         return True, output, report_path
     
     except Exception as e:
@@ -377,8 +392,12 @@ def _generate_report(
     )
 
 
-def get_report_path(strategy_id: str, *, variant: str | None = None) -> Path | None:
+def get_report_path(strategy_id: str, *, variant: str | None = None, kind: str = "equity") -> Path | None:
     """Get the expected report path for a strategy.
+
+    kind:
+      - "equity": default performance report
+      - "trades": trade breakdown report
 
     variant:
       - None / "default": default report name
@@ -391,21 +410,25 @@ def get_report_path(strategy_id: str, *, variant: str | None = None) -> Path | N
     info = strategies[strategy_id]
     base = info.output_dir / info.output
 
+    # kind suffix
+    if kind.strip().lower() in {"trades", "trade", "trade_breakdown"}:
+        base = base.with_name(base.stem + "_trades" + base.suffix)
+
     if variant in {"yearly", "y"}:
         return base.with_name(base.stem + "_y" + base.suffix)
 
     return base
 
 
-def report_exists(strategy_id: str, *, variant: str | None = None) -> bool:
+def report_exists(strategy_id: str, *, variant: str | None = None, kind: str = "equity") -> bool:
     """Check if a report already exists."""
-    path = get_report_path(strategy_id, variant=variant)
+    path = get_report_path(strategy_id, variant=variant, kind=kind)
     return path is not None and path.exists()
 
 
-def report_mtime(strategy_id: str, *, variant: str | None = None) -> float | None:
+def report_mtime(strategy_id: str, *, variant: str | None = None, kind: str = "equity") -> float | None:
     """Return report modification time (unix seconds) or None."""
-    path = get_report_path(strategy_id, variant=variant)
+    path = get_report_path(strategy_id, variant=variant, kind=kind)
     if path is None or not path.exists():
         return None
     try:

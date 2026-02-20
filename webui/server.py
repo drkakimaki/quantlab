@@ -3,6 +3,7 @@
 import argparse
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 
 from .config import get_strategies
 from .runner import run_backtest, get_report_path
@@ -21,7 +22,9 @@ class BacktestHandler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path == "/index.html":
             self._serve_html(render_index())
         elif self.path.startswith("/report/"):
-            self._serve_report()
+            self._serve_report(kind="equity")
+        elif self.path.startswith("/trades/"):
+            self._serve_report(kind="trades")
         else:
             self.send_error(404)
     
@@ -39,7 +42,7 @@ class BacktestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode())
     
-    def _serve_report(self):
+    def _serve_report(self, *, kind: str = "equity"):
         """Serve a report file."""
         parsed = urllib.parse.urlparse(self.path)
         strategy_id = parsed.path.split("/")[-1]
@@ -47,7 +50,7 @@ class BacktestHandler(BaseHTTPRequestHandler):
         mode = (qs.get("mode", [""])[0] or "").strip().lower()
         variant = "yearly" if mode in {"yearly", "y"} else None
 
-        path = get_report_path(strategy_id, variant=variant)
+        path = get_report_path(strategy_id, variant=variant, kind=kind)
 
         if path is None:
             self.send_error(404, "Unknown strategy")
@@ -96,19 +99,34 @@ class BacktestHandler(BaseHTTPRequestHandler):
         self.wfile.write(response.encode())
 
 
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    # Allow Ctrl+C / SIGTERM to exit even if a request handler is busy.
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 def main():
     """Run the backtest UI server."""
     ap = argparse.ArgumentParser(description="Backtest web UI")
     ap.add_argument("--port", type=int, default=8080, help="Port to listen on")
     ap.add_argument("--host", default="", help="Host to bind (default: all interfaces)")
     args = ap.parse_args()
-    
+
     strategies = get_strategies()
     print(f"Starting backtest UI at http://localhost:{args.port}")
     print(f"Strategies: {list(strategies.keys())}")
-    
-    server = HTTPServer((args.host, args.port), BacktestHandler)
-    server.serve_forever()
+
+    server = ThreadingHTTPServer((args.host, args.port), BacktestHandler)
+    try:
+        server.serve_forever(poll_interval=0.2)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            server.shutdown()
+        except Exception:
+            pass
+        server.server_close()
 
 
 if __name__ == "__main__":

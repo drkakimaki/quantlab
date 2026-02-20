@@ -135,6 +135,11 @@ costs: {fee_per_lot: 0.0, spread_per_lot: 0.0}  # Currently zero-cost baseline
 
 Browser-based backtest runner at http://localhost:8080
 
+**Reports served by the UI:**
+- Equity/performance report: `/report/<strategy_id>`
+- Trade breakdown report: `/trades/<strategy_id>`
+- Yearly variant: add `?mode=yearly`
+
 **Available strategies:**
 - Buy & Hold
 - Trend (MA 20/100) - baseline
@@ -153,7 +158,8 @@ Browser-based backtest runner at http://localhost:8080
 ## Reports
 
 ### HTML generation code
-- `quantlab/reporting/generate_bt_report.py` (multi-period single-file HTML)
+- `quantlab/reporting/generate_bt_report.py` (multi-period single-file equity/performance HTML)
+- `quantlab/reporting/generate_trades_report.py` (multi-period single-file trade breakdown HTML)
 
 ### Outputs
 ```
