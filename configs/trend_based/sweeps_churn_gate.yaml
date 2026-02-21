@@ -1,0 +1,15 @@
+# Sweep: churn gate (debounce + re-entry cooldown)
+# Goal: attack the "churn is toxic" fingerprint without touching other hyperparams.
+
+base: configs/trend_based/current.yaml
+mode: three_block
+
+# Constraint (same style as other sweeps): keep worst MaxDD within cap.
+dd_cap_percent: 20
+initial_capital: 1000.0
+
+kind: grid
+
+grid:
+  churn.min_on_bars: [1, 2, 3, 4, 5, 6]
+  churn.cooldown_bars: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
