@@ -176,10 +176,13 @@ def run_backtest(
         if trades_path is not None:
             try:
                 periods_df = {name: df for name, (df, _, _) in results.items()}
+                # Trade breakdown report should keep a clean title (avoid dumping the
+                # hyperparam-enriched string into the page title/header).
+                base_title = (final_title.split(" + ", 1)[0].strip() if final_title else info.name)
                 report_periods_trades_html(
                     periods=periods_df,
                     out_path=trades_path,
-                    title=final_title + " — trade breakdown",
+                    title=base_title + " — trade breakdown",
                 )
             except Exception:
                 # Don't fail the whole UI run if trade report fails.
