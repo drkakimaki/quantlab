@@ -94,12 +94,13 @@ These are applied as gates (must all be true to allow a segment):
   - `abs(corr) >= min_abs` and `flip_count <= max_flips` over `flip_lookback`
 - Combine: **XAG stable OR EUR stable**.
 
+### 8) Sizing
 At entry:
 - If corr stability is false on the last closed bar, the entire segment is blocked.
 - If allowed:
   - (OR mode) exactly one stable → size=1.0 (0.01 lots)
   - (OR mode) both stable → size=2.0 (0.02 lots)
-  - (AND mode) passing requires both, so sizing always uses the “both” tier
+  - (AND mode) passing requires both, so sizing always uses the “both” tier (0.02 lots)
 
 ---
 
