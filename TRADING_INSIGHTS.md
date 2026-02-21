@@ -1,5 +1,7 @@
 # TRADING_INSIGHTS.md
 
+**Last updated:** 2026-02-21 (Europe/Berlin)
+
 A timeless **state + lessons** document for this repo.
 
 What this is:
@@ -34,7 +36,7 @@ What this is *not*:
 - Base: 5m OHLC close
 - HTF: 15m OHLC confirm
 - Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
-- Modules ON: EMA-sep, NoChop, Corr stability (+ sizing), FOMC force-flat, ShockExit
+- Modules ON: EMA-sep, NoChop, Corr stability (+ sizing), FOMC force-flat, **ChurnGate (debounce+cooldown)**, ShockExit
 - Discrete sizing: 0.01 / 0.02 lots only
 
 ---
