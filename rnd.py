@@ -19,6 +19,7 @@ from .engine.metrics import sharpe
 # This keeps the R&D loop minimal and consistent with what the WebUI runs.
 from .webui.periods import build_periods
 from .webui.runner import load_period_data, load_fomc_mask  # type: ignore
+from .webui.config import WORKSPACE
 from .strategies.trend_following import TrendStrategyWithGates
 from .strategies.base import BacktestConfig
 
@@ -160,11 +161,12 @@ def _prepare_best_trend_inputs(cfg: dict[str, Any]) -> list[PreparedPeriod]:
     corr2_symbol = cfg.get("corr2_symbol", "EURUSD")
 
     fomc_cfg = (cfg.get("time_filter", {}) or {}).get("fomc", {}) or {}
-    fomc_path = Path(
-        (cfg.get("time_filter", {}) or {}).get("fomc", {}).get(
-            "days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv"
-        )
+    days_csv = (cfg.get("time_filter", {}) or {}).get("fomc", {}).get(
+        "days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv"
     )
+
+    # Match WebUI semantics: paths in YAML are resolved relative to WORKSPACE.
+    fomc_path = WORKSPACE / str(days_csv)
 
     out: list[PreparedPeriod] = []
     for name, start, end in periods:
