@@ -27,8 +27,13 @@ periods:
 
 costs:
   # Absolute per-lot costs (per side)
-  fee_per_lot: 0.0
-  spread_per_lot: 0.0
+  # IC Markets (XAUUSD) rough mapping:
+  # - avg spread ~ $0.07/oz  => ~$7/lot roundtrip (100 oz/lot)
+  # - commission ~ $7/lot roundtrip
+  # Engine charges costs per side: abs(d_lots) * (fee_per_lot + spread_per_lot)
+  # So we set per-side values so RT ≈ 2*(fee+spread) = $14/lot.
+  fee_per_lot: 3.50
+  spread_per_lot: 3.50
 
 # Core trend signal
 trend:

@@ -126,7 +126,7 @@ corr: {logic: "or", xag: {min_abs: 0.10}, eur: {min_abs: 0.10}}
 time_filter: {kind: "fomc"}
 churn: {min_on_bars: 3, cooldown_bars: 8}
 risk: {shock_exit_abs_ret: 0.006}
-costs: {fee_per_lot: 0.0, spread_per_lot: 0.0}  # Currently zero-cost baseline
+costs: {fee_per_lot: 3.50, spread_per_lot: 3.50}  # IC Markets rough baseline
 ```
 
 ## Web UI

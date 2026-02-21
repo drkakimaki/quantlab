@@ -46,6 +46,10 @@ Reference report:
 - Allowed lot sizes: 0.01, 0.02 (mapped from sizing)
 - Execution model: trade on next bar (engine lag = 1)
 - Entry handling when margin is insufficient: **skip entry** (remain flat)
+- Costs (IC Markets rough baseline):
+  - `fee_per_lot = 3.50` ($ per lot per side)
+  - `spread_per_lot = 3.50` ($ per lot per side)
+  - Total ≈ $14 / lot roundtrip (commission + spread)
 
 ---
 
