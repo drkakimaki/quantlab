@@ -169,7 +169,7 @@ def run_backtest(
         report_path = get_report_path(strategy_id, variant=variant, kind="equity") or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
-        _generate_report(results, info, report_path, cfg=cfg)
+        final_title = _generate_report(results, info, report_path, cfg=cfg)
 
         # Also generate trade breakdown report (convenience for debugging / diagnosis)
         trades_path = get_report_path(strategy_id, variant=variant, kind="trades")
@@ -179,7 +179,7 @@ def run_backtest(
                 report_periods_trades_html(
                     periods=periods_df,
                     out_path=trades_path,
-                    title=info.name + " — trade breakdown",
+                    title=final_title + " — trade breakdown",
                 )
             except Exception:
                 # Don't fail the whole UI run if trade report fails.
@@ -314,8 +314,11 @@ def _generate_report(
     report_path: Path,
     *,
     cfg: dict | None = None,
-) -> None:
-    """Generate HTML report."""
+) -> str:
+    """Generate HTML report.
+
+    Returns the final title string used in the report.
+    """
     periods = {name: df for name, (df, _, _) in results.items()}
     
     n_trades = {}
@@ -371,6 +374,24 @@ def _generate_report(
                 hp.append(f"sizing.one={sizing.get('confirm_size_one')}")
                 hp.append(f"sizing.both={sizing.get('confirm_size_both')}")
 
+            churn = cfg.get("churn", {}) or {}
+            if churn:
+                hp.append(f"churn.min_on={churn.get('min_on_bars')}")
+                hp.append(f"churn.cd={churn.get('cooldown_bars')}")
+
+            season = cfg.get("seasonality", {}) or {}
+            if season:
+                mc = season.get("month_size_cap")
+                if isinstance(mc, dict) and mc:
+                    # compact form like 6:1
+                    parts = ",".join(f"{k}:{v}" for k, v in sorted(mc.items(), key=lambda kv: int(kv[0])))
+                    hp.append(f"seasonality.cap={parts}")
+
+            costs = cfg.get("costs", {}) or {}
+            if costs:
+                hp.append(f"costs.fee={costs.get('fee_per_lot')}")
+                hp.append(f"costs.spread={costs.get('spread_per_lot')}")
+
             risk = cfg.get("risk", {}) or {}
             if risk:
                 hp.append(f"risk.shock_abs={risk.get('shock_exit_abs_ret')}")
@@ -389,6 +410,8 @@ def _generate_report(
         initial_capital=initial_capital,
         n_trades=n_trades,
     )
+
+    return title
 
 
 def get_report_path(strategy_id: str, *, variant: str | None = None, kind: str = "equity") -> Path | None:
