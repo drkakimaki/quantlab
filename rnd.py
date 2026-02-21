@@ -15,8 +15,13 @@ import yaml
 from .engine.metrics import sharpe
 
 
-# We reuse the webui runner for data loading + strategy wiring.
-# This keeps the R&D loop minimal and consistent with what the WebUI runs.
+# We intentionally reuse WebUI modules for period building + data loading + FOMC masking.
+#
+# Why this dependency direction is OK here:
+# - Parity is the priority: the CLI R&D loop (rnd.py) must match what the WebUI runs,
+#   otherwise we end up debugging "why don't the numbers match?" across pipelines.
+# - If this ever becomes painful (extra deps / circular imports), extract the shared
+#   functions into a neutral module (e.g. quantlab/inputs.py) and have both import it.
 from .webui.periods import build_periods
 from .webui.runner import load_period_data, load_fomc_mask  # type: ignore
 from .webui.config import WORKSPACE
