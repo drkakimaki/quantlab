@@ -91,4 +91,3 @@ risk:
   shock_exit_sigma_k: 0.0
   shock_exit_sigma_window: 96
   shock_cooldown_bars: 0
-  segment_ttl_bars: 0
