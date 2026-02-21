@@ -1,10 +1,10 @@
 """Period building for WebUI backtests.
 
 Supports:
-- three_block: 2021-2022, 2023-2025, 2026->today
-- yearly: 2021, 2022, ..., current-year->today
+- three_block: config-defined p1/p2/p3 blocks
+- yearly: 2020, 2021, 2022, ..., current-year->today
 
-Reads from config['periods'] when present.
+Reads from config['periods'].
 
 We intentionally keep this small and dependency-free.
 """
@@ -24,18 +24,17 @@ def _parse_date(s: str) -> dt.date:
 def build_periods(cfg: dict[str, Any] | None) -> list[tuple[str, dt.date, dt.date]]:
     """Build periods list (name, start, end).
 
-    Always starts at 2021.
+    Mode defaults to three_block if not provided.
 
-    Backward compatible:
-    - If cfg['periods']['mode'] missing -> default to three_block.
-    - If cfg missing -> default to three_block.
+    Notes:
+    - three_block requires cfg['periods']['three_block'] with p1/p2/p3.
     """
 
     p = (cfg or {}).get("periods", {})
     mode = p.get("mode", "three_block")
 
     if mode == "yearly":
-        start_year = 2021
+        start_year = 2020
         end_date = dt.date.today()
         periods: list[tuple[str, dt.date, dt.date]] = []
 
@@ -50,19 +49,14 @@ def build_periods(cfg: dict[str, Any] | None) -> list[tuple[str, dt.date, dt.dat
 
     # default: three_block
     tb = p.get("three_block")
-    if isinstance(tb, dict) and tb.get("p1") and tb.get("p2") and tb.get("p3"):
-        out = []
-        for key in ("p1", "p2", "p3"):
-            item = tb[key]
-            name = str(item.get("name", key))
-            start = _parse_date(str(item.get("start")))
-            end = _parse_date(str(item.get("end")))
-            out.append((name, start, end))
-        return out
+    if not (isinstance(tb, dict) and tb.get("p1") and tb.get("p2") and tb.get("p3")):
+        raise ValueError("periods.mode=three_block requires periods.three_block.p1/p2/p3 in config")
 
-    # legacy fallback
-    return [
-        ("2021-2022", dt.date(2021, 1, 1), dt.date(2022, 12, 31)),
-        ("2023-2025", dt.date(2023, 1, 1), dt.date(2025, 12, 31)),
-        ("2026", dt.date(2026, 1, 1), dt.date.today()),
-    ]
+    out = []
+    for key in ("p1", "p2", "p3"):
+        item = tb[key]
+        name = str(item.get("name", key))
+        start = _parse_date(str(item.get("start")))
+        end = _parse_date(str(item.get("end")))
+        out.append((name, start, end))
+    return out

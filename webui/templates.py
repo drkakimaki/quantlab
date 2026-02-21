@@ -271,7 +271,7 @@ HTML_TEMPLATE = """<!doctype html>
           <label for="breakdown">Time setting</label>
           <select name="breakdown" id="breakdown">
             <option value="">Config default</option>
-            <option value="three_block">3 blocks (21–22 / 23–25 / 26)</option>
+            <option value="three_block">3 blocks (20–22 / 23–25 / 26)</option>
             <option value="yearly">Yearly (2021+)</option>
           </select>
 

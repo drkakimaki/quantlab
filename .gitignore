@@ -9,6 +9,7 @@ data/
 # reports (generated / bulky)
 reports/**/*.html
 reports/_archive_*/
+reports/_tmp_*/
 reports/**/raw/**
 *.parquet
 
