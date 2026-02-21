@@ -358,69 +358,31 @@ class StrategyBase:
         return pd.DataFrame(records)
 
     def _extract_trades(self, df: pd.DataFrame) -> list[dict]:
-        """Extract trade list from backtest dataframe.
+        """Extract trade list from a backtest dataframe (deprecated).
 
-        A trade is defined as:
-        - Entry: position goes from 0 to non-zero
-        - Exit: position goes from non-zero to 0
+        This method is kept for backward compatibility, but it delegates to the
+        canonical vectorized implementation:
+          `quantlab.engine.trades.extract_trade_log`
 
-        Returns:
-            List of trade dicts with entry_time, exit_time, pnl, etc.
+        Rationale
+        ---------
+        A previous loop-based implementation lived here and could drift from the
+        canonical trade-return definition (log1p compounding on returns_net).
+        Delegating avoids latent inconsistencies if anyone calls this helper.
+
+        Returns
+        -------
+        List[dict]
+            One dict per trade (same fields as extract_trade_log), e.g.:
+            trade_id, entry_time, exit_time, bars,
+            entry_equity, exit_equity, pnl, trade_return, open
         """
-        trades = []
-        pos = df["position"]
-        equity = df["equity"]
+        from ..engine.trades import extract_trade_log
 
-        in_trade = False
-        entry_idx = None
-        entry_pos = 0.0
-
-        for i, (t, p) in enumerate(pos.items()):
-            if not in_trade and p != 0:
-                # Entry
-                in_trade = True
-                entry_idx = i
-                entry_time = t
-                entry_pos = float(p)
-                entry_equity = float(equity.iloc[i])
-
-            elif in_trade and p == 0:
-                # Exit
-                exit_time = t
-                exit_equity = float(equity.iloc[i])
-                pnl = exit_equity - entry_equity
-
-                trades.append({
-                    "entry_time": entry_time,
-                    "exit_time": exit_time,
-                    "position": entry_pos,
-                    "entry_equity": entry_equity,
-                    "exit_equity": exit_equity,
-                    "pnl": pnl,
-                    "bars": i - entry_idx,
-                })
-
-                in_trade = False
-                entry_idx = None
-
-        # Handle open position at end
-        if in_trade and entry_idx is not None:
-            exit_time = pos.index[-1]
-            exit_equity = float(equity.iloc[-1])
-            pnl = exit_equity - entry_equity
-
-            trades.append({
-                "entry_time": entry_time,
-                "exit_time": exit_time,
-                "position": entry_pos,
-                "entry_equity": entry_equity,
-                "exit_equity": exit_equity,
-                "pnl": pnl,
-                "bars": len(pos) - entry_idx,
-                "open": True,
-            })
-
-        return trades
+        tl = extract_trade_log(df)
+        if tl is None or len(tl) == 0:
+            return []
+        return tl.to_dict(orient="records")
 
     def run_backtest(
         self,
