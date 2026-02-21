@@ -86,7 +86,7 @@ trade_log = extract_trade_log(result.df)
 | `NoChopGate` | Avoid choppy markets |
 | `CorrelationGate` | XAG/EUR correlation stability |
 | `TimeFilterGate` | FOMC force-flat windows |
-| `RiskGate` | Shock exits, segment TTL |
+| `RiskGate` | Shock exits (+ optional cooldown) |
 
 Gate is ON when config block present, OFF when missing.
 
@@ -112,11 +112,6 @@ Gate is ON when config block present, OFF when missing.
 | `dukascopy_15m` | ts, bid, ask, mid, spread |
 | `dukascopy_15m_ohlc` | ts, open, high, low, close |
 
-**Status:**
-- XAUUSD: 2020 (partial ~80%), 2021-2026 complete
-- XAGUSD, EURUSD: 2021-2026 complete
-- 5m OHLC: 2021-2026 (2020 pending resample)
-
 ## Configuration
 
 `quantlab/configs/trend_based/current.yaml`:
@@ -128,6 +123,7 @@ ema_sep: {ema_fast: 40, ema_slow: 300, sep_k: 0.05}
 nochop: {ema: 20, lookback: 40, min_closes: 24}
 corr: {logic: "or", xag: {min_abs: 0.10}, eur: {min_abs: 0.10}}
 time_filter: {kind: "fomc", mode: "force_flat"}
+risk: {shock_exit_abs_ret: 0.006}
 costs: {fee_per_lot: 0.0, spread_per_lot: 0.0}  # Currently zero-cost baseline
 ```
 
