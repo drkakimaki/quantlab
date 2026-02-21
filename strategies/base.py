@@ -357,32 +357,7 @@ class StrategyBase:
         
         return pd.DataFrame(records)
 
-    def _extract_trades(self, df: pd.DataFrame) -> list[dict]:
-        """Extract trade list from a backtest dataframe (deprecated).
-
-        This method is kept for backward compatibility, but it delegates to the
-        canonical vectorized implementation:
-          `quantlab.engine.trades.extract_trade_log`
-
-        Rationale
-        ---------
-        A previous loop-based implementation lived here and could drift from the
-        canonical trade-return definition (log1p compounding on returns_net).
-        Delegating avoids latent inconsistencies if anyone calls this helper.
-
-        Returns
-        -------
-        List[dict]
-            One dict per trade (same fields as extract_trade_log), e.g.:
-            trade_id, entry_time, exit_time, bars,
-            entry_equity, exit_equity, pnl, trade_return, open
-        """
-        from ..engine.trades import extract_trade_log
-
-        tl = extract_trade_log(df)
-        if tl is None or len(tl) == 0:
-            return []
-        return tl.to_dict(orient="records")
+    # NOTE: trade extraction helper removed. Use `quantlab.engine.trades.extract_trade_log`.
 
     def run_backtest(
         self,
