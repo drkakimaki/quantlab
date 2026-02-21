@@ -1,6 +1,6 @@
 # Best Trend Variant — Strategy Logic & Parameters (XAUUSD)
 
-**Last updated:** 2026-02-21 (Europe/Berlin)
+**Last updated:** 2026-02-21 (Europe/Berlin) — churn gate promoted to canonical
 
 This document describes the current **best trend-following variant** under the (now-default) **account/margin backtest model**.
 
@@ -34,8 +34,9 @@ Reference report:
 - Shock exit (kill-switch):
   - If **abs(5m return) ≥ 0.006 (0.6%)** on the last closed bar → force flat for the rest of the segment
   - Purpose: cut the tail risk on the worst drawdown-deepening days
-- Churn gate (optional, currently OFF in canonical config):
-  - Entry debounce (`min_on_bars`) + re-entry cooldown (`cooldown_bars`) to reduce toxic churn
+- Churn gate (enabled):
+  - Entry debounce: `min_on_bars=3`
+  - Re-entry cooldown: `cooldown_bars=8`
 - Sizing mode: confirm (one=1.0, both=2.0 → sizes map to 0.01/0.02 lots)
 
 **Account / execution model:**
@@ -77,10 +78,11 @@ These are applied as gates (must all be true to allow a segment):
   - **19:00 UTC (pre=2h, post=0.5h)** (date-only approximation; ignores DST shifts)
 - Semantics: **force flat** (do not hold through the window).
 
-### 6) Churn gate (optional)
+### 6) Churn gate (enabled)
 - Entry debounce: delay entry until signal has been ON for N consecutive bars (`churn.min_on_bars`).
+  - Canonical: `min_on_bars=3`
 - Re-entry cooldown: after an exit, block new entries for C bars (`churn.cooldown_bars`).
-- Current canonical config: OFF (no `churn:` block).
+  - Canonical: `cooldown_bars=8`
 
 ### 7) Shock exit (kill-switch)
 - Compute 5m close-to-close returns on the base series.
@@ -108,8 +110,8 @@ Module convention:
 - a module is **ON** if its config block is present (non-null)
 - a module is **OFF** if the block is missing/null
 
-Notable optional blocks:
-- `churn:` (debounce + cooldown) — OFF unless explicitly configured
+Notable blocks:
+- `churn:` (debounce + cooldown) — ON in canonical config
 - `risk:` (shock exit) — ON in canonical config
 
 ---

@@ -86,6 +86,10 @@ time_filter:
     pre_hours: 2.0
     post_hours: 0.5
 
+churn:
+  min_on_bars: 3
+  cooldown_bars: 8
+
 risk:
   shock_exit_abs_ret: 0.006
   shock_exit_sigma_k: 0.0
