@@ -65,8 +65,12 @@ What this is *not*:
   - Source: `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 
 ### Behavioral fingerprints (trade breakdown)
-- **Seasonality:** Jun–Aug are weak/negative, while Jan/Oct are strong → expect “summer chop tax”.
-- **Duration-driven edge:** long holds (≈97+ bars) carry most of the PnL; mid-short holds (≈13–48 bars) are strongly negative → churn hurts.
+- **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
+- **Duration-driven edge:**
+  - Very long holds pay: **97+ bars** are strongly positive.
+  - The toxic zone is **13–48 bars** (strongly negative).
+  - Promoting the churn gate (`min_on=3`, `cooldown=8`) reduced total trades (**1449 → 1359**) and improved net PnL mainly by reducing losses in **13–48 bars**.
+  - Evidence: `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
 
 ### Risk & drawdowns (best_trend-specific)
 - **~98–99% of drawdown deepening happens while in-position.**
