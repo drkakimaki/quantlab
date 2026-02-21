@@ -38,13 +38,29 @@ Interpretation
 - It still hurts in some years (2022, 2025), so seasonality is not a free lunch.
 - The big 2023 MaxDD improvement suggests a June drawdown period where size=2 amplified pain.
 
+Three-block results
+-------------------
+We also evaluated the three-block breakdown (same config, same post-processing cap rule):
+
+- `three_block_compare.csv`
+
+Headline deltas (cap1 − baseline):
+- 2020–2022: **+4.69%** PnL, MaxDD improves by **+0.72pp**, Sharpe **+0.08**
+- 2023–2025: **+5.18%** PnL, MaxDD improves by **+3.05pp**, Sharpe **+0.12**
+- 2026 (YTD): unchanged
+
+Interpretation update
+---------------------
+On the three-block aggregate view, the June size cap looks broadly beneficial (improves both PnL and MaxDD in the two large historical blocks), while keeping 2026 unchanged.
+
 Next steps (if we pursue)
 ------------------------
-1) Evaluate on three-block totals too (not just yearly), and on walk-forward.
+1) Validate with walk-forward (avoid overfitting calendar effects).
 2) Consider a conditional rule: only cap size in June when corr confirmation is marginal (or when chop proxy is high).
-3) If promoted, implement as a clean config option (e.g. month-based size cap inside TimeFilter or Sizing module).
+3) If promoted, implement as a clean config option (month-based size cap inside a dedicated module).
 
 Files
 -----
 - best.yaml
 - yearly_compare.csv
+- three_block_compare.csv
