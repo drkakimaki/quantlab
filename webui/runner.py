@@ -374,7 +374,6 @@ def _generate_report(
             risk = cfg.get("risk", {}) or {}
             if risk:
                 hp.append(f"risk.shock_abs={risk.get('shock_exit_abs_ret')}")
-                hp.append(f"risk.ttl={risk.get('segment_ttl_bars')}")
 
         except Exception:
             hp = []

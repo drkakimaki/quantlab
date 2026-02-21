@@ -42,4 +42,3 @@ grid:
   corr.eur.max_flips: [0, 2, 5]
 
   risk.shock_exit_abs_ret: [0.004, 0.005, 0.006, 0.007, 0.008]
-  risk.segment_ttl_bars: [0, 48, 96, 192]
