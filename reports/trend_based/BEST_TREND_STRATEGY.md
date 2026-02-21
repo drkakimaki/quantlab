@@ -1,5 +1,7 @@
 # Best Trend Variant — Strategy Logic & Parameters (XAUUSD)
 
+**Last updated:** 2026-02-21 (Europe/Berlin)
+
 This document describes the current **best trend-following variant** under the (now-default) **account/margin backtest model**.
 
 Key instrument/execution assumptions are summarized once below under **Account / execution model**.
@@ -11,10 +13,10 @@ Reference report:
 
 ## Active config (as currently run)
 
-**Periods (as used in the report):**
-- `2021-2022`: 2021-01-01 → 2022-12-31
+**Periods (as used in the canonical report config):**
+- `2020-2022`: 2020-01-01 → 2022-12-31
 - `2023-2025`: 2023-01-01 → 2025-12-31
-- `2026`: 2026-01-01 → 2026-02-13
+- `2026`: 2026-01-01 → today
 
 **Data sources:**
 - Base: 5m OHLC close (`data/dukascopy_5m_ohlc/XAUUSD/...`)
@@ -32,6 +34,8 @@ Reference report:
 - Shock exit (kill-switch):
   - If **abs(5m return) ≥ 0.006 (0.6%)** on the last closed bar → force flat for the rest of the segment
   - Purpose: cut the tail risk on the worst drawdown-deepening days
+- Churn gate (optional, currently OFF in canonical config):
+  - Entry debounce (`min_on_bars`) + re-entry cooldown (`cooldown_bars`) to reduce toxic churn
 - Sizing mode: confirm (one=1.0, both=2.0 → sizes map to 0.01/0.02 lots)
 
 **Account / execution model:**
@@ -73,7 +77,12 @@ These are applied as gates (must all be true to allow a segment):
   - **19:00 UTC (pre=2h, post=0.5h)** (date-only approximation; ignores DST shifts)
 - Semantics: **force flat** (do not hold through the window).
 
-### 6) Shock exit (kill-switch)
+### 6) Churn gate (optional)
+- Entry debounce: delay entry until signal has been ON for N consecutive bars (`churn.min_on_bars`).
+- Re-entry cooldown: after an exit, block new entries for C bars (`churn.cooldown_bars`).
+- Current canonical config: OFF (no `churn:` block).
+
+### 7) Shock exit (kill-switch)
 - Compute 5m close-to-close returns on the base series.
 - If **abs(return) ≥ 0.006 (0.6%)** on the *last closed bar* (shifted by 1 bar), then:
   - force flat for the remainder of the current segment
@@ -91,25 +100,32 @@ At entry:
 
 ---
 
-## On/off arguments in code
+## On/off semantics
 
-The clean code supports toggling modules on/off (defaults match the best config):
-- `ema_sep_filter` (default True)
-- `nochop_filter` (default True)
-- `corr_filter` (default True)
+This strategy is configured via `configs/trend_based/current.yaml`.
 
-If `corr_filter=False`, sizing simplifies to a fixed `confirm_size_one` when the non-corr gates are on.
+Module convention:
+- a module is **ON** if its config block is present (non-null)
+- a module is **OFF** if the block is missing/null
+
+Notable optional blocks:
+- `churn:` (debounce + cooldown) — OFF unless explicitly configured
+- `risk:` (shock exit) — ON in canonical config
 
 ---
 
 ## Implementation pointers
 
 - Strategy implementation:
-  - `src/quantlab/strategies/trend_following.py` → `trend_following_ma_crossover_htf_confirm`
+  - `strategies/trend_following.py` → `TrendStrategyWithGates`
+  - Gates: `HTFConfirmGate`, `EMASeparationGate`, `NoChopGate`, `CorrelationGate`, `TimeFilterGate`, `ChurnGate`, `RiskGate`
 - Backtest engine (unified):
-  - `src/quantlab/backtest.py` → `backtest_positions_account_margin`
-- Report runner (clean):
-  - `scripts/report_trend_variants.py`
+  - `engine/backtest.py` → `backtest_positions_account_margin`
+- Report generation:
+  - `reporting/generate_bt_report.py` (equity/performance HTML)
+  - `reporting/generate_trades_report.py` (trade breakdown HTML)
+- WebUI runner (canonical wiring for best_trend):
+  - `webui/runner.py`
 
 ---
 
