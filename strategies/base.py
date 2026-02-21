@@ -71,12 +71,9 @@ class BacktestConfig:
 class TimeFilterConfig:
     """Configuration for time-based filtering.
 
-    Supports two modes:
-    - force_flat: Set position=0 during blocked windows
-    - block_entry: Block entries during windows, but allow existing positions to continue
+    Canonical semantics: **force_flat**.
     """
 
-    mode: str = "force_flat"  # "force_flat" or "block_entry"
     allow_mask: pd.Series | None = None  # 1=allowed, 0=blocked (optional, for precomputed masks)
 
 
@@ -219,40 +216,13 @@ class StrategyBase:
             mask = time_filter.reindex(positions.index).fillna(0)
             return positions * mask
 
-        # Handle TimeFilterConfig
+        # Handle TimeFilterConfig (canonical: force_flat)
         if isinstance(time_filter, TimeFilterConfig):
             if time_filter.allow_mask is None:
                 return positions
 
             mask = time_filter.allow_mask.reindex(positions.index).fillna(0)
-
-            if time_filter.mode == "force_flat":
-                # Simple: multiply positions by mask
-                return positions * mask
-
-            elif time_filter.mode == "block_entry":
-                # Block entries during windows, allow existing positions
-                # This requires tracking position state
-                filtered = positions.copy()
-                for i in range(1, len(filtered)):
-                    prev_pos = filtered.iloc[i - 1]
-                    curr_pos = positions.iloc[i]
-                    allowed = mask.iloc[i] if i < len(mask) else 0
-
-                    if allowed == 0 and prev_pos == 0:
-                        # Blocked window + flat = stay flat (block entry)
-                        filtered.iloc[i] = 0.0
-                    elif allowed == 0 and prev_pos != 0:
-                        # Blocked window + in position = keep previous position
-                        # (allow exit if signal goes flat)
-                        if curr_pos == 0:
-                            filtered.iloc[i] = 0.0
-                        else:
-                            filtered.iloc[i] = prev_pos
-                    else:
-                        filtered.iloc[i] = curr_pos
-
-                return filtered
+            return positions * mask
 
         return positions
 

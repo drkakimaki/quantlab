@@ -7,11 +7,7 @@ Design goals
 ------------
 - Pure functions operating on pandas indexes/Series.
 - Strategy-agnostic: apply to any 0/1/2 (or -1/0/+1) position/size series.
-- Supports two common semantics:
-    1) force_flat: set position=0 during blocked windows.
-    2) block_entry_hold_segment: only block *entries* that start in a blocked
-       window, but allow already-open segments to continue (mirrors our corr
-       entry gating behavior).
+- Semantics (canonical): force_flat — set position=0 during blocked windows.
 
 See: `quantlab.time_filter.core`.
 """

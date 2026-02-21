@@ -78,8 +78,6 @@ sizing:
 # (currently used for FOMC; mode is implemented in quantlab.time_filter)
 time_filter:
   kind: fomc
-  mode: force_flat
-  entry_shift: 1
   fomc:
     days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
     utc_hhmm: "19:00"

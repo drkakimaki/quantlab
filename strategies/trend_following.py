@@ -376,22 +376,18 @@ class CorrelationGate:
 class TimeFilterGate:
     """Time filter gate.
 
-    Applies allow_mask to block positions during specific times.
+    Canonical semantics: **force_flat** (positions are zeroed when blocked).
     """
 
     def __init__(
         self,
         allow_mask: pd.Series | None = None,
-        mode: str = "force_flat",
-        entry_shift: int = 1,
     ):
         self.allow_mask = allow_mask
-        self.mode = mode
-        self.entry_shift = entry_shift
 
     @property
     def name(self) -> str:
-        return f"TimeFilter({self.mode})"
+        return "TimeFilter(force_flat)"
 
     def __call__(
         self,
@@ -415,8 +411,6 @@ class TimeFilterGate:
         return apply_time_filter(
             positions,
             pd.Series(mask, index=positions.index),
-            mode=self.mode,
-            entry_shift=self.entry_shift,
         )
 
 
@@ -761,14 +755,11 @@ class TrendStrategyWithGates(StrategyBase):
                 confirm_size_both=sizing_cfg.get("confirm_size_both", 2.0),
             )
 
-        # Time filter gate
+        # Time filter gate (canonical: force_flat)
         time_filter_gate = None
         if config.get("time_filter") or allow_mask is not None:
-            tf_cfg = config.get("time_filter", {})
             time_filter_gate = TimeFilterGate(
                 allow_mask=allow_mask,
-                mode=tf_cfg.get("mode", "force_flat"),
-                entry_shift=tf_cfg.get("entry_shift", 1),
             )
 
         # Churn gate

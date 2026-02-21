@@ -117,29 +117,16 @@ def build_allow_mask_from_events(index: pd.DatetimeIndex, *, events: list[EventW
 def apply_time_filter(
     pos_size: pd.Series,
     allow_mask: pd.Series,
-    *,
-    mode: str = "force_flat",  # force_flat | block_entry_hold_segment
-    entry_shift: int = 1,
 ) -> pd.Series:
     """Apply a time filter to a position/size series.
 
-    Parameters
-    ----------
-    pos_size:
-        Position/size series aligned to the base timeframe.
-    allow_mask:
-        Boolean series; True means trading allowed.
-    mode:
-        - force_flat: set pos=0 when allow=False.
-        - block_entry_hold_segment: if a segment *enters* when allow=False,
-          block that entire segment; otherwise allow it to run normally.
-    entry_shift:
-        When using block_entry_hold_segment, entry decision uses
-        allow_mask.shift(entry_shift) (default 1) to represent "last closed bar".
+    Canonical semantics: **force_flat**.
 
-    Returns
-    -------
-    Filtered position series.
+    - allow_mask=True  -> position unchanged
+    - allow_mask=False -> force position to 0
+
+    (Other semantics were removed to avoid confusing multi-shift interactions with
+    engine lag and to keep the backtest wiring unambiguous.)
     """
     if not isinstance(pos_size, pd.Series):
         raise TypeError("pos_size must be a Series")
@@ -148,21 +135,4 @@ def apply_time_filter(
     idx = pos.index
     m = pd.Series(allow_mask, index=idx).reindex(idx).fillna(False).astype(bool)
 
-    if mode == "force_flat":
-        return pos.where(m, 0.0).astype(float)
-
-    if mode != "block_entry_hold_segment":
-        raise ValueError("mode must be 'force_flat' or 'block_entry_hold_segment'")
-
-    gate_on = pos != 0.0
-    entry_bar = gate_on & (~gate_on.shift(1, fill_value=False))
-
-    # use last-closed info at entry
-    m_entry = m.shift(int(entry_shift)).fillna(False)
-    entry_ok = entry_bar & m_entry
-
-    seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
-    seg_entry_ok = entry_ok.groupby(seg).transform("max")
-
-    allowed = gate_on & seg_entry_ok
-    return pos.where(allowed, 0.0).astype(float)
+    return pos.where(m, 0.0).astype(float)

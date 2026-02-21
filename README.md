@@ -123,7 +123,7 @@ htf_confirm: {rule: "15min"}
 ema_sep: {ema_fast: 40, ema_slow: 300, sep_k: 0.05}
 nochop: {ema: 20, lookback: 40, min_closes: 24}
 corr: {logic: "or", xag: {min_abs: 0.10}, eur: {min_abs: 0.10}}
-time_filter: {kind: "fomc", mode: "force_flat"}
+time_filter: {kind: "fomc"}
 churn: {min_on_bars: 3, cooldown_bars: 8}
 risk: {shock_exit_abs_ret: 0.006}
 costs: {fee_per_lot: 0.0, spread_per_lot: 0.0}  # Currently zero-cost baseline
