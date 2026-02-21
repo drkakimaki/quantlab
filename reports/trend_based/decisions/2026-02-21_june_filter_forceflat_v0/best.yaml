@@ -1,0 +1,100 @@
+# Canonical configuration for the trend_based strategy ("best_trend")
+#
+# Convention:
+# - This file is the single source of truth for the canonical configuration.
+# - scripts/report_trend_variants.py should load this by default.
+# - CLI flags may override values for experimentation.
+#
+# Module convention:
+# - A module is ON if its config block is present (non-null)
+# - A module is OFF if the block is null or missing
+
+symbol: XAUUSD
+corr_symbol: XAGUSD
+corr2_symbol: EURUSD
+
+roots:
+  root_5m_ohlc: quantlab/data/dukascopy_5m_ohlc
+  root_15m_ohlc: quantlab/data/dukascopy_15m_ohlc
+
+periods:
+  mode: three_block   # three_block | yearly
+
+  three_block:
+    p1: { name: "2020-2022", start: "2020-01-01", end: "2022-12-31" }
+    p2: { name: "2023-2025", start: "2023-01-01", end: "2025-12-31" }
+    p3: { name: "2026", start: "2026-01-01", end: "today" }
+
+costs:
+  # Absolute per-lot costs (per side)
+  # IC Markets (XAUUSD) rough mapping:
+  # - avg spread ~ $0.07/oz  => ~$7/lot roundtrip (100 oz/lot)
+  # - commission ~ $7/lot roundtrip
+  # Engine charges costs per side: abs(d_lots) * (fee_per_lot + spread_per_lot)
+  # So we set per-side values so RT ≈ 2*(fee+spread) = $14/lot.
+  fee_per_lot: 3.50
+  spread_per_lot: 3.50
+
+# Core trend signal
+trend:
+  fast: 30
+  slow: 75
+
+# --- Modules (canonical defaults reflect current promoted best) ---
+
+# Higher timeframe confirmation (gate base signal by HTF SMA fast/slow)
+htf_confirm:
+  rule: 15min
+
+ema_sep:
+  ema_fast: 40
+  ema_slow: 300
+  atr_n: 20
+  sep_k: 0.05
+
+nochop:
+  ema: 20
+  lookback: 40
+  min_closes: 24
+
+  # Optional/experimental semantics
+  entry_held: false
+  exit_bad_bars: 0
+
+corr:
+  logic: or
+  xag:
+    window: 40
+    min_abs: 0.10
+    flip_lookback: 50
+    max_flips: 0
+  eur:
+    window: 75
+    min_abs: 0.10
+    flip_lookback: 75
+    max_flips: 5
+
+sizing:
+  # "Confirm" sizing: size is decided at entry from last-closed info and held for the segment.
+  confirm_size_one: 1.0
+  confirm_size_both: 2.0
+
+# Strategy-agnostic time filter
+# (currently used for FOMC; mode is implemented in quantlab.time_filter)
+time_filter:
+  kind: fomc
+  fomc:
+    days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
+    utc_hhmm: "19:00"
+    pre_hours: 2.0
+    post_hours: 0.5
+
+churn:
+  min_on_bars: 3
+  cooldown_bars: 8
+
+risk:
+  shock_exit_abs_ret: 0.006
+  shock_exit_sigma_k: 0.0
+  shock_exit_sigma_window: 96
+  shock_cooldown_bars: 0
