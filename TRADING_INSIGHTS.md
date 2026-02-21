@@ -95,6 +95,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 - `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/`
 - `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - `reports/trend_based/decisions/2026-02-14_shock_exits/`
+- `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
 
 ### Risk research
 - `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
