@@ -1,0 +1,32 @@
+[
+  {
+    "event": "CPI (Consumer Price Index)",
+    "category": "inflation",
+    "importance": "high",
+    "release_id": 10
+  },
+  {
+    "event": "Personal Income and Outlays (PCE)",
+    "category": "inflation",
+    "importance": "high",
+    "release_id": 54
+  },
+  {
+    "event": "Employment Situation (NFP)",
+    "category": "labor",
+    "importance": "high",
+    "release_id": 50
+  },
+  {
+    "event": "Gross Domestic Product (GDP)",
+    "category": "growth",
+    "importance": "high",
+    "release_id": 53
+  },
+  {
+    "event": "Advance Monthly Sales for Retail and Food Services (Retail Sales)",
+    "category": "growth",
+    "importance": "high",
+    "release_id": 9
+  }
+]

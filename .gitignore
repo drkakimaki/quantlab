@@ -3,8 +3,18 @@ __pycache__/
 *.pyc
 .venv/
 
-# data (large / generated)
-data/
+# data
+# Track the *code* + small static calendar inputs, ignore bulky datasets.
+data/*
+!data/__init__.py
+!data/*.py
+!data/econ_calendar/
+!data/econ_calendar/**
+
+# bulky / generated datasets
+/data/dukascopy_*/
+/data/dukascopy_raw/
+/data/_backfill_2020_state.json
 
 # reports (generated / bulky)
 reports/**/*.html

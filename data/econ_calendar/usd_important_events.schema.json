@@ -1,0 +1,15 @@
+{
+  "description": "USD important economic calendar events",
+  "type": "object",
+  "properties": {
+    "ts_utc": {"type": "string", "description": "ISO8601 UTC timestamp"},
+    "country": {"type": "string", "enum": ["US"]},
+    "ccy": {"type": "string", "enum": ["USD"]},
+    "event": {"type": "string"},
+    "category": {"type": "string"},
+    "importance": {"type": "string", "enum": ["high", "medium", "low"]},
+    "source": {"type": "string"},
+    "notes": {"type": "string"}
+  },
+  "required": ["ts_utc", "country", "ccy", "event", "importance"]
+}
