@@ -374,7 +374,7 @@ class CorrelationGate:
 
 class TimeFilterGate:
     """Time filter gate.
-    
+
     Applies allow_mask to block positions during specific times.
     """
 
@@ -400,18 +400,102 @@ class TimeFilterGate:
     ) -> pd.Series:
         if self.allow_mask is None:
             return positions
-        
+
         # Get allow_mask from context if not set
         mask = self.allow_mask
         if context and "allow_mask" in context:
             mask = context["allow_mask"]
-        
+
         if mask is None:
             return positions
-        
+
         from ..time_filter import apply_time_filter
-        return apply_time_filter(positions, pd.Series(mask, index=positions.index), 
-                                  mode=self.mode, entry_shift=self.entry_shift)
+
+        return apply_time_filter(
+            positions,
+            pd.Series(mask, index=positions.index),
+            mode=self.mode,
+            entry_shift=self.entry_shift,
+        )
+
+
+class ChurnGate:
+    """Churn-reduction gate (signal debouncing + re-entry cooldown).
+
+    This is a *post-processing* gate: it only transforms an existing position
+    size series (0/1/2). It does not create entries.
+
+    Features
+    --------
+    1) Entry persistence / debounce (min_on_bars)
+       Delay entry until the raw signal has been ON for N consecutive bars.
+       (Chops off the first N-1 bars of each segment.)
+
+    2) Re-entry cooldown (cooldown_bars)
+       After an exit (ON -> OFF), block new entries for the next C bars.
+
+    Notes
+    -----
+    - Long-only is assumed by upstream (positions > 0).
+    - This gate is designed to attack the "churn is toxic" fingerprint.
+    """
+
+    def __init__(
+        self,
+        *,
+        min_on_bars: int = 1,
+        cooldown_bars: int = 0,
+    ):
+        self.min_on_bars = int(min_on_bars)
+        self.cooldown_bars = int(cooldown_bars)
+
+    @property
+    def name(self) -> str:
+        return f"Churn(min_on={self.min_on_bars}, cd={self.cooldown_bars})"
+
+    def _apply_entry_persistence(self, pos: pd.Series) -> pd.Series:
+        n = int(self.min_on_bars)
+        if n <= 1:
+            return pos
+
+        p = pos.fillna(0.0).astype(float)
+        on = (p > 0.0).astype(int)
+
+        # stable_on[t] = True iff on[t-n+1 : t] are all True
+        stable_on = on.rolling(n, min_periods=n).min().fillna(0).astype(bool)
+        return p.where(stable_on, 0.0)
+
+    def _apply_reentry_cooldown(self, pos: pd.Series) -> pd.Series:
+        c = int(self.cooldown_bars)
+        if c <= 0:
+            return pos
+
+        p = pos.fillna(0.0).astype(float)
+        on = p > 0.0
+
+        exit_bar = (~on) & (on.shift(1, fill_value=False))
+        cool = exit_bar.astype(int).rolling(c, min_periods=1).max().astype(bool)
+
+        entry = on & (~on.shift(1, fill_value=False))
+        block = entry & cool
+
+        # If an entry is blocked, kill the whole would-be segment.
+        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+        seg_block = block.groupby(seg).transform("max")
+
+        return p.where(~seg_block, 0.0)
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        # prices/context unused; kept for gate signature parity
+        pos = positions.copy()
+        pos = self._apply_entry_persistence(pos)
+        pos = self._apply_reentry_cooldown(pos)
+        return pos
 
 
 class RiskGate:
@@ -536,6 +620,7 @@ class TrendStrategyWithGates(StrategyBase):
         nochop_gate: NoChopGate | None = None,
         corr_gate: CorrelationGate | None = None,
         time_filter_gate: TimeFilterGate | None = None,
+        churn_gate: ChurnGate | None = None,
         risk_gate: RiskGate | None = None,
     ):
         self.fast = fast
@@ -545,12 +630,20 @@ class TrendStrategyWithGates(StrategyBase):
         self.nochop_gate = nochop_gate
         self.corr_gate = corr_gate
         self.time_filter_gate = time_filter_gate
+        self.churn_gate = churn_gate
         self.risk_gate = risk_gate
 
     @property
     def name(self) -> str:
-        gates = [g for g in [self.htf_gate, self.ema_sep_gate, self.nochop_gate, 
-                              self.corr_gate, self.time_filter_gate, self.risk_gate] if g is not None]
+        gates = [g for g in [
+            self.htf_gate,
+            self.ema_sep_gate,
+            self.nochop_gate,
+            self.corr_gate,
+            self.time_filter_gate,
+            self.churn_gate,
+            self.risk_gate,
+        ] if g is not None]
         gate_names = [g.name for g in gates]
         return f"Trend({self.fast}/{self.slow}) + [{', '.join(gate_names)}]"
 
@@ -601,6 +694,10 @@ class TrendStrategyWithGates(StrategyBase):
         # NoChop exit_bad_bars (after time_filter)
         if self.nochop_gate and self.nochop_gate.exit_bad_bars > 0:
             pos = self.nochop_gate.apply_exit_bad_bars(pos)
+
+        # Churn gate (after time_filter + optional exit_bad_bars, before risk)
+        if self.churn_gate:
+            pos = self.churn_gate(pos, px, context)
 
         if self.risk_gate:
             pos = self.risk_gate(pos, px, context)
@@ -673,6 +770,15 @@ class TrendStrategyWithGates(StrategyBase):
                 entry_shift=tf_cfg.get("entry_shift", 1),
             )
 
+        # Churn gate
+        churn_gate = None
+        churn_cfg = config.get("churn", {})
+        if churn_cfg:
+            churn_gate = ChurnGate(
+                min_on_bars=int(churn_cfg.get("min_on_bars", 1) or 1),
+                cooldown_bars=int(churn_cfg.get("cooldown_bars", 0) or 0),
+            )
+
         # Risk gate
         risk_gate = None
         risk_cfg = config.get("risk", {})
@@ -692,6 +798,7 @@ class TrendStrategyWithGates(StrategyBase):
             nochop_gate=nochop_gate,
             corr_gate=corr_gate,
             time_filter_gate=time_filter_gate,
+            churn_gate=churn_gate,
             risk_gate=risk_gate,
         )
 
@@ -708,5 +815,6 @@ __all__ = [
     "NoChopGate",
     "CorrelationGate",
     "TimeFilterGate",
+    "ChurnGate",
     "RiskGate",
 ]

@@ -24,6 +24,7 @@ from .trend_following import (
     NoChopGate,
     CorrelationGate,
     TimeFilterGate,
+    ChurnGate,
     RiskGate,
 )
 
@@ -46,5 +47,6 @@ __all__ = [
     "NoChopGate",
     "CorrelationGate",
     "TimeFilterGate",
+    "ChurnGate",
     "RiskGate",
 ]
