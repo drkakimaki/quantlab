@@ -358,6 +358,7 @@ class CorrelationGate:
                 both_ok = stable1 & stable2
                 one_ok = stable_ok
             else:
+                # AND mode: passing implies both confirmations, so sizing uses the "both" tier.
                 both_ok = stable_ok
                 one_ok = stable_ok
 

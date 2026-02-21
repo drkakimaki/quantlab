@@ -97,8 +97,9 @@ These are applied as gates (must all be true to allow a segment):
 At entry:
 - If corr stability is false on the last closed bar, the entire segment is blocked.
 - If allowed:
-  - exactly one stable → size=1.0 (0.01 lots)
-  - both stable → size=2.0 (0.02 lots)
+  - (OR mode) exactly one stable → size=1.0 (0.01 lots)
+  - (OR mode) both stable → size=2.0 (0.02 lots)
+  - (AND mode) passing requires both, so sizing always uses the “both” tier
 
 ---
 
