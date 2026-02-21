@@ -414,6 +414,42 @@ class TimeFilterGate:
         )
 
 
+class SeasonalitySizeCapGate:
+    """Seasonality-based position size cap.
+
+    Post-processing gate that caps position size based on calendar month.
+
+    Example: cap to 1.0 during June (month=6) while leaving other months unchanged.
+    """
+
+    def __init__(self, *, month_size_cap: dict[int, float] | None = None):
+        self.month_size_cap = month_size_cap or {}
+
+    @property
+    def name(self) -> str:
+        if not self.month_size_cap:
+            return "SeasonalitySizeCap(off)"
+        parts = ",".join(f"{m}:{c:g}" for m, c in sorted(self.month_size_cap.items()))
+        return f"SeasonalitySizeCap({parts})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        if not self.month_size_cap:
+            return positions
+
+        pos = positions.copy().fillna(0.0).astype(float)
+        idx = pd.DatetimeIndex(pos.index)
+        for m, cap in self.month_size_cap.items():
+            mask = (idx.month == int(m))
+            if mask.any():
+                pos.loc[mask] = pos.loc[mask].clip(upper=float(cap))
+        return pos
+
+
 class ChurnGate:
     """Churn-reduction gate (signal debouncing + re-entry cooldown).
 
@@ -615,6 +651,7 @@ class TrendStrategyWithGates(StrategyBase):
         nochop_gate: NoChopGate | None = None,
         corr_gate: CorrelationGate | None = None,
         time_filter_gate: TimeFilterGate | None = None,
+        seasonality_gate: SeasonalitySizeCapGate | None = None,
         churn_gate: ChurnGate | None = None,
         risk_gate: RiskGate | None = None,
     ):
@@ -625,6 +662,7 @@ class TrendStrategyWithGates(StrategyBase):
         self.nochop_gate = nochop_gate
         self.corr_gate = corr_gate
         self.time_filter_gate = time_filter_gate
+        self.seasonality_gate = seasonality_gate
         self.churn_gate = churn_gate
         self.risk_gate = risk_gate
 
@@ -636,6 +674,7 @@ class TrendStrategyWithGates(StrategyBase):
             self.nochop_gate,
             self.corr_gate,
             self.time_filter_gate,
+            self.seasonality_gate,
             self.churn_gate,
             self.risk_gate,
         ] if g is not None]
@@ -690,7 +729,11 @@ class TrendStrategyWithGates(StrategyBase):
         if self.nochop_gate and self.nochop_gate.exit_bad_bars > 0:
             pos = self.nochop_gate.apply_exit_bad_bars(pos)
 
-        # Churn gate (after time_filter + optional exit_bad_bars, before risk)
+        # Seasonality size cap (after sizing/corr + time_filter, before churn/risk)
+        if self.seasonality_gate:
+            pos = self.seasonality_gate(pos, px, context)
+
+        # Churn gate (after seasonality cap, before risk)
         if self.churn_gate:
             pos = self.churn_gate(pos, px, context)
 
@@ -762,6 +805,15 @@ class TrendStrategyWithGates(StrategyBase):
                 allow_mask=allow_mask,
             )
 
+        # Seasonality gate (optional)
+        seasonality_gate = None
+        seasonality_cfg = config.get("seasonality", {}) or {}
+        month_cap = seasonality_cfg.get("month_size_cap")
+        if isinstance(month_cap, dict) and month_cap:
+            # normalize keys/values
+            caps: dict[int, float] = {int(k): float(v) for k, v in month_cap.items()}
+            seasonality_gate = SeasonalitySizeCapGate(month_size_cap=caps)
+
         # Churn gate
         churn_gate = None
         churn_cfg = config.get("churn", {})
@@ -790,6 +842,7 @@ class TrendStrategyWithGates(StrategyBase):
             nochop_gate=nochop_gate,
             corr_gate=corr_gate,
             time_filter_gate=time_filter_gate,
+            seasonality_gate=seasonality_gate,
             churn_gate=churn_gate,
             risk_gate=risk_gate,
         )
@@ -807,6 +860,7 @@ __all__ = [
     "NoChopGate",
     "CorrelationGate",
     "TimeFilterGate",
+    "SeasonalitySizeCapGate",
     "ChurnGate",
     "RiskGate",
 ]

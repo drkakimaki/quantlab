@@ -28,15 +28,15 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `best_trend.html`)
-- 2020-2022: PnL **32.26%**, MaxDD **-17.34%**, Sharpe **0.59**
-- 2023-2025: PnL **326.89%**, MaxDD **-17.40%**, Sharpe **2.73**
+- 2020-2022: PnL **36.95%**, MaxDD **-16.62%**, Sharpe **0.67**
+- 2023-2025: PnL **332.07%**, MaxDD **-14.35%**, Sharpe **2.85**
 - 2026: PnL **139.72%**, MaxDD **-10.53%**, Sharpe **9.07**
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close
 - HTF: 15m OHLC confirm
 - Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
-- Modules ON: EMA-sep, NoChop, Corr stability (+ sizing), FOMC force-flat, **ChurnGate (debounce+cooldown)**, ShockExit
+- Modules ON: EMA-sep, NoChop, Corr stability (+ sizing), FOMC force-flat, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, ShockExit
 - Discrete sizing: 0.01 / 0.02 lots only
 
 ---
@@ -96,6 +96,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 - `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - `reports/trend_based/decisions/2026-02-14_shock_exits/`
 - `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
+- `reports/trend_based/decisions/2026-02-21_june_softcap_size1_v0/`
 
 ### Risk research
 - `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`

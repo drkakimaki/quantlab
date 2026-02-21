@@ -37,6 +37,8 @@ Reference report:
 - Churn gate (enabled):
   - Entry debounce: `min_on_bars=3`
   - Re-entry cooldown: `cooldown_bars=8`
+- Seasonality size cap (enabled):
+  - June soft cap: size <= 1.0 during June (`seasonality.month_size_cap: {6: 1.0}`)
 - Sizing mode: confirm (one=1.0, both=2.0 → sizes map to 0.01/0.02 lots)
 
 **Account / execution model:**
