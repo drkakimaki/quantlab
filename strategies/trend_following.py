@@ -416,8 +416,12 @@ class TimeFilterGate:
 
 class RiskGate:
     """Risk management gate.
-    
-    Implements shock exit (abs return or sigma-based), cooldown, and segment TTL.
+
+    Implements shock exit (abs return or sigma-based) and optional cooldown.
+
+    Note: segment TTL was removed from the canonical strategy code (unused in the
+    promoted config). If we want TTL back later, re-introduce it as a separate
+    gate/module so it can be tested/ablationed cleanly.
     """
 
     def __init__(
@@ -426,17 +430,15 @@ class RiskGate:
         shock_exit_sigma_k: float = 0.0,
         shock_exit_sigma_window: int = 96,
         shock_cooldown_bars: int = 0,
-        segment_ttl_bars: int = 0,
     ):
         self.shock_exit_abs_ret = shock_exit_abs_ret
         self.shock_exit_sigma_k = shock_exit_sigma_k
         self.shock_exit_sigma_window = shock_exit_sigma_window
         self.shock_cooldown_bars = shock_cooldown_bars
-        self.segment_ttl_bars = segment_ttl_bars
 
     @property
     def name(self) -> str:
-        return f"Risk(shock={self.shock_exit_abs_ret}, ttl={self.segment_ttl_bars})"
+        return f"Risk(shock={self.shock_exit_abs_ret})"
 
     def __call__(
         self,
@@ -472,15 +474,6 @@ class RiskGate:
                 if self.shock_cooldown_bars > 0:
                     cool_mask = shock.astype(int).rolling(self.shock_cooldown_bars, min_periods=1).max().astype(bool)
                     pos = pos.where(~cool_mask, 0.0)
-
-        # Segment TTL
-        if self.segment_ttl_bars > 0:
-            gate_on = pos > 0.0
-            seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
-            bars_in_seg = gate_on.groupby(seg).cumsum() - 1
-            ttl_kill = (bars_in_seg >= self.segment_ttl_bars) & gate_on
-            seg_kill = ttl_kill.groupby(seg).cummax()
-            pos = pos.where(~seg_kill, 0.0)
 
         return pos
 
@@ -689,7 +682,6 @@ class TrendStrategyWithGates(StrategyBase):
                 shock_exit_sigma_k=risk_cfg.get("shock_exit_sigma_k", 0.0),
                 shock_exit_sigma_window=risk_cfg.get("shock_exit_sigma_window", 96),
                 shock_cooldown_bars=risk_cfg.get("shock_cooldown_bars", 0),
-                segment_ttl_bars=risk_cfg.get("segment_ttl_bars", 0),
             )
 
         return cls(
