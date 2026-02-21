@@ -77,7 +77,7 @@ trade_log = extract_trade_log(result.df)
 
 ## Composable Gates
 
-`TrendStrategyWithGates` applies: `base → HTF → EMASep → NoChop → Corr → TimeFilter → Risk`
+`TrendStrategyWithGates` applies: `base → HTF → EMASep → NoChop → Corr → TimeFilter → Churn → Risk`
 
 | Gate | Purpose |
 |------|---------|
@@ -86,6 +86,7 @@ trade_log = extract_trade_log(result.df)
 | `NoChopGate` | Avoid choppy markets |
 | `CorrelationGate` | XAG/EUR correlation stability |
 | `TimeFilterGate` | FOMC force-flat windows |
+| `ChurnGate` | Entry debounce + re-entry cooldown |
 | `RiskGate` | Shock exits (+ optional cooldown) |
 
 Gate is ON when config block present, OFF when missing.
