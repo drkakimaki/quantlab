@@ -26,9 +26,9 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `best_trend.html`)
-- 2021-2022: PnL **22.83%**, MaxDD **-11.59%**, Sharpe **0.68**
+- 2020-2022: PnL **39.22%**, MaxDD **-18.14%**, Sharpe **0.68**
 - 2023-2025: PnL **345.01%**, MaxDD **-15.22%**, Sharpe **2.84**
-- 2026: PnL **142.95%**, MaxDD **-11.75%**, Sharpe **8.97**
+- 2026: PnL **132.24%**, MaxDD **-11.75%**, Sharpe **7.98**
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close
