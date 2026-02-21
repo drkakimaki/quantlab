@@ -1,0 +1,141 @@
+{
+  "base": "configs/trend_based/current.yaml",
+  "dd_cap_percent": 20.0,
+  "grid": {
+    "corr.eur.flip_lookback": [
+      50,
+      75,
+      100
+    ],
+    "corr.eur.max_flips": [
+      0,
+      2,
+      5
+    ],
+    "corr.eur.min_abs": [
+      0.05,
+      0.1,
+      0.15,
+      0.2
+    ],
+    "corr.eur.window": [
+      30,
+      50,
+      75,
+      100
+    ],
+    "corr.logic": [
+      "or"
+    ],
+    "corr.xag.flip_lookback": [
+      30,
+      50,
+      75
+    ],
+    "corr.xag.max_flips": [
+      0,
+      2,
+      5
+    ],
+    "corr.xag.min_abs": [
+      0.05,
+      0.1,
+      0.15,
+      0.2
+    ],
+    "corr.xag.window": [
+      20,
+      30,
+      40,
+      60,
+      80
+    ],
+    "ema_sep.atr_n": [
+      14,
+      20,
+      30
+    ],
+    "ema_sep.ema_fast": [
+      20,
+      30,
+      40,
+      50,
+      60
+    ],
+    "ema_sep.ema_slow": [
+      150,
+      200,
+      250,
+      300,
+      350,
+      400
+    ],
+    "ema_sep.sep_k": [
+      0.02,
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.08
+    ],
+    "htf_confirm.rule": [
+      "15min"
+    ],
+    "nochop.ema": [
+      10,
+      15,
+      20,
+      25,
+      30
+    ],
+    "nochop.lookback": [
+      20,
+      30,
+      40,
+      50,
+      60
+    ],
+    "nochop.min_closes": [
+      12,
+      18,
+      24,
+      30
+    ],
+    "risk.segment_ttl_bars": [
+      0,
+      48,
+      96,
+      192
+    ],
+    "risk.shock_exit_abs_ret": [
+      0.004,
+      0.005,
+      0.006,
+      0.007,
+      0.008
+    ],
+    "trend.fast": [
+      20,
+      25,
+      30,
+      35,
+      40,
+      45
+    ],
+    "trend.slow": [
+      60,
+      70,
+      75,
+      80,
+      90,
+      100,
+      110
+    ]
+  },
+  "kind": "sweep",
+  "mode": "three_block",
+  "n_candidates": 600,
+  "objective": "sum_pnl subject_to worst_maxdd_cap",
+  "sweep_kind": "sample",
+  "sweep_path": "configs/trend_based/sweeps_huge_sample_3block.yaml"
+}
