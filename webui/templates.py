@@ -63,11 +63,11 @@ def _render_existing_reports(strategies: dict) -> str:
 
             if report_exists(sid, variant="yearly"):
                 url_y = f"/report/{sid}?mode=yearly"
-                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Open _y</a>')
+                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Open (Y)</a>')
 
             if report_exists(sid, variant="yearly", kind="trades"):
                 url_ty = f"/trades/{sid}?mode=yearly"
-                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Trades _y</a>')
+                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Trades (Y)</a>')
 
             items.append(
                 f'<div class="strategy-item">'
