@@ -4,6 +4,7 @@ import argparse
 import copy
 import datetime as dt
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -278,6 +279,16 @@ def _write_decision_bundle(
     return d
 
 
+def _emit(args: argparse.Namespace, *, payload: dict[str, Any], text: str) -> None:
+    fmt = (getattr(args, "format", "json") or "json").strip().lower()
+    if fmt == "text":
+        print(text)
+        return
+    if fmt != "json":
+        raise ValueError(f"Unknown --format {fmt!r}")
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     cfg = yaml.safe_load(Path(args.config).read_text()) or {}
 
@@ -288,11 +299,35 @@ def cmd_run(args: argparse.Namespace) -> int:
         cfg["periods"] = p
 
     period_dfs = _run_best_trend_periods(cfg)
-    score, results_df = _score_candidate(period_dfs, dd_cap_percent=float(args.dd_cap), initial_capital=float(args.initial_capital))
+    score, results_df = _score_candidate(
+        period_dfs,
+        dd_cap_percent=float(args.dd_cap),
+        initial_capital=float(args.initial_capital),
+    )
 
-    print(results_df.to_string(index=False))
-    print()
-    print(f"OK={score.ok}  sum_pnl={score.sum_pnl:.2f}%  worst_maxdd={score.worst_maxdd:.2f}%  avg_sharpe={score.avg_sharpe:.2f}")
+    text = (
+        results_df.to_string(index=False)
+        + "\n\n"
+        + f"OK={score.ok}  sum_pnl={score.sum_pnl:.2f}%  worst_maxdd={score.worst_maxdd:.2f}%  avg_sharpe={score.avg_sharpe:.2f}"
+    )
+
+    payload = {
+        "kind": "run",
+        "config_path": str(args.config),
+        "mode": (cfg.get("periods", {}) or {}).get("mode"),
+        "dd_cap_percent": float(args.dd_cap),
+        "initial_capital": float(args.initial_capital),
+        "score": {
+            "ok": bool(score.ok),
+            "sum_pnl": float(score.sum_pnl),
+            "worst_maxdd": float(score.worst_maxdd),
+            "avg_sharpe": float(score.avg_sharpe),
+            "maxdd_violation": float(score.maxdd_violation),
+        },
+        "periods": results_df.to_dict(orient="records"),
+    }
+
+    _emit(args, payload=payload, text=text)
 
     if args.decision_slug:
         notes = {
@@ -310,7 +345,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             score=score,
             notes=notes,
         )
-        print(f"\nWrote decision bundle: {d}")
+        msg = f"\nWrote decision bundle: {d}"
+        if (getattr(args, "format", "json") or "json").strip().lower() == "json":
+            print(msg, file=sys.stderr)
+        else:
+            print(msg)
 
     return 0
 
@@ -395,9 +434,11 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     best_score: CandidateScore | None = None
     best_results_df: pd.DataFrame | None = None
 
-    print("Preparing period data (cached for sweep)...", flush=True)
+    log = (print if (getattr(args, "format", "json") or "json").strip().lower() == "text" else (lambda *a, **k: print(*a, **k, file=sys.stderr)))
+
+    log("Preparing period data (cached for sweep)...", flush=True)
     prepared = _prepare_best_trend_inputs(base_cfg)
-    print(f"Prepared {len(prepared)} periods. Starting {len(combos)} candidates...", flush=True)
+    log(f"Prepared {len(prepared)} periods. Starting {len(combos)} candidates...", flush=True)
 
     for idx, combo in enumerate(combos, 1):
         cfg = copy.deepcopy(base_cfg)
@@ -427,13 +468,25 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             best_results_df = results_df
 
         if args.progress and (idx % int(args.progress) == 0):
-            print(f"{idx}/{len(combos)} done...", flush=True)
+            log(f"{idx}/{len(combos)} done...", flush=True)
 
     df = pd.DataFrame(rows)
     df = df.sort_values(by=["ok", "maxdd_violation", "sum_pnl"], ascending=[False, True, False])
 
     topk_df = df.head(top_k).copy()
-    print(topk_df.to_string(index=False))
+
+    text = topk_df.to_string(index=False)
+    payload = {
+        "kind": "sweep",
+        "sweep_path": str(args.sweep),
+        "base": str(base_path),
+        "mode": (base_cfg.get("periods", {}) or {}).get("mode"),
+        "dd_cap_percent": float(dd_cap),
+        "top_k": int(top_k),
+        "topk": topk_df.to_dict(orient="records"),
+    }
+
+    _emit(args, payload=payload, text=text)
 
     if args.decision_slug:
         assert best_cfg is not None and best_score is not None and best_results_df is not None
@@ -456,7 +509,11 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             score=best_score,
             notes=notes,
         )
-        print(f"\nWrote decision bundle: {d}")
+        msg = f"\nWrote decision bundle: {d}"
+        if (getattr(args, "format", "json") or "json").strip().lower() == "json":
+            print(msg, file=sys.stderr)
+        else:
+            print(msg)
 
     return 0
 
@@ -470,12 +527,24 @@ def main(argv: list[str] | None = None) -> int:
     ap_run.add_argument("--mode", default="", help="Override periods.mode (three_block|yearly)")
     ap_run.add_argument("--dd-cap", type=float, default=20.0, help="MaxDD cap in percent (default 20)")
     ap_run.add_argument("--initial-capital", type=float, default=1000.0)
+    ap_run.add_argument(
+        "--format",
+        default="json",
+        choices=["json", "text"],
+        help="Output format (default: json)",
+    )
     ap_run.add_argument("--decision-slug", default="", help="If set, write decision bundle under reports/trend_based/decisions")
     ap_run.set_defaults(func=cmd_run)
 
     ap_sw = sub.add_parser("sweep", help="Run a grid sweep from sweeps.yaml")
     ap_sw.add_argument("--sweep", required=True, help="Path to sweeps.yaml")
     ap_sw.add_argument("--dd-cap", type=float, default=20.0, help="Default MaxDD cap if not set in YAML")
+    ap_sw.add_argument(
+        "--format",
+        default="json",
+        choices=["json", "text"],
+        help="Output format (default: json)",
+    )
     ap_sw.add_argument("--decision-slug", default="", help="If set, write decision bundle")
     ap_sw.add_argument("--progress", default="", help="Print progress every N combos")
     ap_sw.set_defaults(func=cmd_sweep)
