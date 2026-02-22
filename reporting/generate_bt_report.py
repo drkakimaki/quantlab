@@ -78,6 +78,7 @@ def report_periods_equity_only(
     equity_col: str = "equity",
     n_trades: dict[str, int] | None = None,
     win_rate: dict[str, float] | None = None,
+    score_exclude: list[str] | set[str] | None = None,
 ) -> Path:
     """Single-file HTML report for multiple periods.
 
@@ -241,13 +242,20 @@ def report_periods_equity_only(
             "</tr>"
         )
 
-    # Top summary strip
-    total_trades = int(sum((r.n_trades or 0) for r in rows))
+    # Top summary strip (scored periods only, if score_exclude is set)
+    exclude = set(score_exclude or [])
+    scored_rows = [r for r in rows if r.period not in exclude]
+
+    total_trades = int(sum((r.n_trades or 0) for r in scored_rows))
     # Worst drawdown (most negative)
-    worst_dd = float(min((r.max_drawdown for r in rows if np.isfinite(r.max_drawdown)), default=float("nan")))
+    worst_dd = float(min((r.max_drawdown for r in scored_rows if np.isfinite(r.max_drawdown)), default=float("nan")))
     # Average sharpe across periods (simple mean)
-    sh_list = [r.sharpe for r in rows if np.isfinite(r.sharpe)]
+    sh_list = [r.sharpe for r in scored_rows if np.isfinite(r.sharpe)]
     avg_sharpe = float(np.mean(sh_list)) if sh_list else float("nan")
+
+    holdout_note = ""
+    if exclude:
+        holdout_note = f"Holdout excluded from header stats: {sorted(exclude)}"
 
     # Charts HTML with show-all toggle
     charts_html = [
@@ -446,6 +454,7 @@ def report_periods_equity_only(
         <div class='pill'>Avg Sharpe: <b>{num(avg_sharpe)}</b></div>
         <div class='pill'>Worst MaxDD: <b>{pct(worst_dd)}</b></div>
       </div>
+      <div class='sub'>{holdout_note}</div>
     </div>
 
     <div class='section grid'>

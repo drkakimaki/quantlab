@@ -75,6 +75,7 @@ def report_periods_trades_html(
     returns_col: str = "returns_net",
     equity_col: str = "equity",
     costs_col: str = "costs",
+    score_exclude: list[str] | set[str] | None = None,
 ) -> Path:
     """Single-file HTML report with trade breakdown per period + TOTAL."""
     out_path = Path(out_path)
@@ -123,9 +124,12 @@ def report_periods_trades_html(
 
     all_trades = pd.concat(ledgers, ignore_index=True)
 
-    # Histogram for TOTAL
+    exclude = set(score_exclude or [])
+    scored_trades = all_trades[~all_trades["period"].isin(exclude)].copy() if exclude else all_trades
+
+    # Histogram for TOTAL (scored only)
     fig, ax = plt.subplots(figsize=(6.2, 3.6))
-    rr = all_trades["trade_return"].astype(float).to_numpy()
+    rr = scored_trades["trade_return"].astype(float).to_numpy()
     rr = rr[np.isfinite(rr)]
     ax.hist(rr, bins=70, color="#60a5fa", alpha=0.85)
     ax.grid(True, alpha=0.25)
@@ -135,13 +139,17 @@ def report_periods_trades_html(
     fig.tight_layout()
     hist_uri = _fig_to_data_uri(fig)
 
-    # TOTAL stats
-    n_trades = int(len(all_trades))
-    win_rate = float(all_trades["win"].mean())
-    sum_pnl = float(all_trades["pnl_net"].sum())
+    # TOTAL stats (scored only)
+    n_trades = int(len(scored_trades))
+    win_rate = float(scored_trades["win"].mean())
+    sum_pnl = float(scored_trades["pnl_net"].sum())
     # sum_costs removed from report (keep costs available in per-trade ledger)
-    pf_total = _profit_factor(all_trades["pnl_net"])
-    avg_bars = float(all_trades["bars"].mean())
+    pf_total = _profit_factor(scored_trades["pnl_net"])
+    avg_bars = float(scored_trades["bars"].mean())
+
+    holdout_note = ""
+    if exclude:
+        holdout_note = f"Holdout excluded from header stats: {sorted(exclude)}"
 
     # TOTAL breakdowns
     by_period = _agg(all_trades, "period")
@@ -310,6 +318,7 @@ def report_periods_trades_html(
     <div class='header'>
       <h1>{title}</h1>
       <div class='sub'>Per-trade breakdown across periods + per-period top winners/losers.</div>
+      <div class='sub'>{holdout_note}</div>
       <div class='summary-strip'>
         <div class='pill'># Trades: <b>{n_trades:,}</b></div>
         <div class='pill'>Win rate: <b>{win_rate*100:,.2f}%</b></div>

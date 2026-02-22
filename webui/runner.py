@@ -179,10 +179,12 @@ def run_backtest(
                 # Trade breakdown report should keep a clean title (avoid dumping the
                 # hyperparam-enriched string into the page title/header).
                 base_title = (final_title.split(" + ", 1)[0].strip() if final_title else info.name)
+                score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
                 report_periods_trades_html(
                     periods=periods_df,
                     out_path=trades_path,
                     title=base_title + " — trade breakdown",
+                    score_exclude=score_exclude,
                 )
             except Exception:
                 # Don't fail the whole UI run if trade report fails.
@@ -433,12 +435,15 @@ def _generate_report(
         if hp:
             title = title + " + " + " + ".join(hp)
     
+    score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or []) if isinstance(cfg, dict) else []
+
     report_periods_equity_only(
         periods=periods,
         out_path=report_path,
         title=title,
         initial_capital=initial_capital,
         n_trades=n_trades,
+        score_exclude=score_exclude,
     )
 
     return title
