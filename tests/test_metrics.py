@@ -10,5 +10,7 @@ def test_max_drawdown_simple():
 
 
 def test_sharpe_constant_is_nan():
-    r = pd.Series([0.0] * 10)
-    assert pd.isna(sharpe(r))
+    # Flat equity => 0 daily returns => std=0 => Sharpe is undefined (nan)
+    idx = pd.date_range("2025-01-01", periods=10, freq="D", tz="UTC")
+    eq = pd.Series([100.0] * 10, index=idx)
+    assert pd.isna(sharpe(eq))

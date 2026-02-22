@@ -376,8 +376,8 @@ class StrategyBase:
         # Canonical trade count: contiguous position segments
         trade_count = int(n_trades_from_position(df, pos_col="position"))
 
-        # Sharpe annualization: assume 5-minute bars for now (matches engine output)
-        sharpe = float(_sharpe(returns, freq="5MIN"))
+        # Canonical Sharpe: computed on daily returns derived from equity.
+        sharpe = float(_sharpe(equity))
 
         # Max drawdown as percent
         max_drawdown = float(_max_dd(equity)) * 100

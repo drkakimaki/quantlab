@@ -72,10 +72,12 @@ def _max_drawdown_percent(equity: pd.Series) -> float:
     return float(dd.min()) * 100.0
 
 
-def _period_stats(bt: pd.DataFrame, *, initial_capital: float, freq: str = "5MIN") -> tuple[float, float, float]:
-    """Return (pnl_percent, maxdd_percent, sharpe)."""
+def _period_stats(bt: pd.DataFrame, *, initial_capital: float) -> tuple[float, float, float]:
+    """Return (pnl_percent, maxdd_percent, sharpe).
+
+    Sharpe is computed canonically on daily returns derived from equity.
+    """
     eq = bt["equity"].astype(float)
-    r = bt["returns_net"].astype(float)
 
     cap0 = float(initial_capital)
     if cap0 <= 0:
@@ -83,7 +85,7 @@ def _period_stats(bt: pd.DataFrame, *, initial_capital: float, freq: str = "5MIN
 
     pnl = (float(eq.iloc[-1]) / cap0 - 1.0) * 100.0
     maxdd = _max_drawdown_percent(eq)
-    s = float(sharpe(r, freq=freq))
+    s = float(sharpe(eq))
     return pnl, maxdd, s
 
 
@@ -92,7 +94,6 @@ def _score_candidate(
     *,
     dd_cap_percent: float,
     initial_capital: float = 1000.0,
-    freq: str = "5MIN",
 ) -> tuple[CandidateScore, pd.DataFrame]:
     rows = []
     sum_pnl = 0.0
@@ -103,7 +104,7 @@ def _score_candidate(
         if bt is None or len(bt) == 0:
             pnl, maxdd, s = float("nan"), float("nan"), float("nan")
         else:
-            pnl, maxdd, s = _period_stats(bt, initial_capital=initial_capital, freq=freq)
+            pnl, maxdd, s = _period_stats(bt, initial_capital=initial_capital)
 
         rows.append({"period": name, "pnl_percent": pnl, "maxdd_percent": maxdd, "sharpe": s})
 

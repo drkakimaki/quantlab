@@ -409,7 +409,6 @@ def _generate_report(
         periods=periods,
         out_path=report_path,
         title=title,
-        freq="5MIN",
         initial_capital=initial_capital,
         n_trades=n_trades,
     )

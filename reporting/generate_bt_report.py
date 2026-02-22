@@ -73,7 +73,6 @@ def report_periods_equity_only(
     periods: dict[str, pd.DataFrame],
     out_path: str | Path,
     title: str,
-    freq: str,
     initial_capital: float | dict[str, float],
     returns_col: str = "returns_net",
     equity_col: str = "equity",
@@ -139,7 +138,8 @@ def report_periods_equity_only(
         dd = (eq / peak) - 1.0
         max_dd = float(dd.min()) * 100.0
 
-        s = float(sharpe(r, freq=freq))
+        # Canonical Sharpe: computed on daily returns derived from equity.
+        s = float(sharpe(eq))
         if n_trades is None:
             trades = n_trades_from_position(bt, pos_col="position")
         else:

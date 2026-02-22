@@ -1,6 +1,6 @@
 # TRADING_INSIGHTS.md
 
-**Last updated:** 2026-02-21 (Europe/Berlin)
+**Last updated:** 2026-02-22 (Europe/Berlin)
 
 A timeless **state + lessons** document for this repo.
 
@@ -28,9 +28,11 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `best_trend.html`)
-- 2020-2022: PnL **36.95%**, MaxDD **-16.62%**, Sharpe **0.67**
-- 2023-2025: PnL **332.07%**, MaxDD **-14.35%**, Sharpe **2.85**
-- 2026: PnL **139.72%**, MaxDD **-10.53%**, Sharpe **9.07**
+- 2020-2022: PnL **36.95%**, MaxDD **-16.62%**, Sharpe **0.59**
+- 2023-2025: PnL **332.07%**, MaxDD **-14.35%**, Sharpe **2.12**
+- 2026: PnL **139.72%**, MaxDD **-10.53%**, Sharpe **5.63**
+
+**Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close

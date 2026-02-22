@@ -14,59 +14,69 @@ def _to_series(x) -> pd.Series:
     return pd.Series(x)
 
 
-def annualization_factor(freq: str) -> float:
-    """Return annualization factor for Sharpe/vol etc.
+def daily_returns_from_equity(
+    equity,
+    *,
+    tz: str | None = "UTC",
+) -> pd.Series:
+    """Compute daily close-to-close returns from an intraday equity curve.
 
-    Supported freq strings:
-    - 'S'            : 1-second
-    - 'T' / 'MIN'    : 1-minute
-    - '5MIN'         : 5-minute
-    - '15MIN'        : 15-minute
-    - 'H'            : hourly
-    - 'D'            : daily (calendar days)
-    - 'B'            : business days
-    - 'W'            : weekly
-    - 'M'            : monthly
+    This is the canonical return series for Sharpe in Quantlab.
 
     Notes
     -----
-    - For intraday, we annualize using **252 trading days/year** (not 365).
-      This matches common finance convention and avoids overstating Sharpe/vol.
+    - Daily grouping is done by resampling to calendar days ("1D") on the equity
+      index and taking the last value as the daily close.
+    - If you need NY-5pm trading-day boundaries, implement that explicitly and
+      keep this function as the single choke point.
     """
-    freq = freq.upper()
+    e = _to_series(equity).dropna().astype(float)
+    if e.empty:
+        return pd.Series(dtype=float)
 
-    # Common convention for FX-like markets (24h, 5d/week): ~260 trading days/year.
-    TRADING_DAYS = 260
-    table = {
-        # Intraday: assume 24h * trading days (good approximation for FX/CFDs; weekends largely absent).
-        "S": 60 * 60 * 24 * TRADING_DAYS,
-        "T": 60 * 24 * TRADING_DAYS,
-        "MIN": 60 * 24 * TRADING_DAYS,
-        "5MIN": (60 // 5) * 24 * TRADING_DAYS,
-        "15MIN": (60 // 15) * 24 * TRADING_DAYS,
-        "H": 24 * TRADING_DAYS,
+    if not isinstance(e.index, (pd.DatetimeIndex,)):
+        raise TypeError("equity must be indexed by timestamps (DatetimeIndex)")
 
-        # Daily calendars vs business days
-        "D": 365,
-        "B": 252,
-        "W": 52,
-        "M": 12,
-    }
-    if freq not in table:
-        raise KeyError(f"Unknown freq {freq!r}. Known: {sorted(table)}")
-    return table[freq]
+    # Normalize timestamps to a known timezone for resampling.
+    idx = pd.to_datetime(e.index)
+    if tz is not None:
+        if idx.tz is None:
+            idx = idx.tz_localize(tz)
+        else:
+            idx = idx.tz_convert(tz)
+    e = e.copy()
+    e.index = idx
+    e = e.sort_index()
+
+    daily_close = e.resample("1D").last().dropna()
+    return daily_close.pct_change().dropna()
 
 
-def sharpe(returns, freq: str = "B") -> float:
-    r = _to_series(returns).dropna()
+def sharpe(
+    equity,
+    *,
+    annual_days: int = 252,
+    tz: str | None = "UTC",
+) -> float:
+    """Annualized Sharpe ratio computed on **daily** returns.
+
+    Canonical definition in this codebase:
+      1) Aggregate equity to daily closes
+      2) Compute daily returns (close-to-close)
+      3) Sharpe = sqrt(252) * mean(daily_ret) / std(daily_ret)
+
+    This intentionally avoids intraday annualization debates.
+    """
+    r = daily_returns_from_equity(equity, tz=tz)
     if r.empty:
         return float("nan")
-    af = annualization_factor(freq)
-    mu = r.mean()
-    sig = r.std(ddof=1)
-    if sig == 0:
+
+    mu = float(r.mean())
+    sig = float(r.std(ddof=1))
+    if sig == 0.0 or not np.isfinite(sig):
         return float("nan")
-    return float(np.sqrt(af) * mu / sig)
+
+    return float(np.sqrt(float(annual_days)) * mu / sig)
 
 
 def max_drawdown(equity) -> float:
