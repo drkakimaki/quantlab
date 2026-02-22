@@ -39,14 +39,19 @@ quantlab/
 
 ### CLI R&D loop (agent-friendly)
 ```bash
+# NOTE: quantlab.rnd outputs JSON by default (agent-friendly).
+# Use --format text for human-readable tables.
+
 # Single run from experiment config
 .venv/bin/python -m quantlab.rnd run \
+  --format text \
   --config quantlab/configs/trend_based/experiment.yaml \
   --mode yearly \
   --dd-cap 20
 
 # Grid sweep (writes decision bundle if --decision-slug is set)
 .venv/bin/python -m quantlab.rnd sweep \
+  --format text \
   --sweep quantlab/configs/trend_based/sweeps.yaml \
   --decision-slug sweep_fast_slow
 ```
