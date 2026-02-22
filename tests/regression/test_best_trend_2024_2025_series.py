@@ -11,8 +11,8 @@ from quantlab.webui.runner import WORKSPACE, load_period_data, load_fomc_mask
 from quantlab.strategies import BacktestConfig, TrendStrategyWithGates
 
 
-GOLDEN = Path(__file__).resolve().parents[1] / "golden" / "best_trend_2024_2025_series.csv.gz"
-CFG = Path(__file__).resolve().parents[1] / "golden" / "best_trend_2024_2025_config.yaml"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "best_trend_2024_2025_series.csv.gz"
+CFG = Path(__file__).resolve().parent / "golden" / "best_trend_2024_2025_config.yaml"
 
 
 def _data_available() -> bool:

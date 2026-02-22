@@ -26,7 +26,7 @@ from quantlab.strategies import BacktestConfig, TrendStrategyWithGates
 
 HERE = Path(__file__).resolve()
 REPO = HERE.parents[2]
-GOLDEN_DIR = REPO / "tests" / "golden"
+GOLDEN_DIR = REPO / "tests" / "regression" / "golden"
 OUT_SERIES = GOLDEN_DIR / "best_trend_2024_2025_series.csv.gz"
 OUT_CFG = GOLDEN_DIR / "best_trend_2024_2025_config.yaml"
 
