@@ -29,7 +29,7 @@ class BuyAndHoldStrategy(StrategyBase):
         *,
         context: dict | None = None,
     ) -> pd.Series:
-        """Generate position: 2.0 (double lot) from start to end."""
+        """Generate position: 1.0 (baseline) from start to end."""
         px = prices.dropna().copy()
         px.index = pd.to_datetime(px.index)
         px = px.sort_index()
@@ -51,6 +51,6 @@ class BuyAndHoldStrategy(StrategyBase):
 
         pos = pd.Series(0.0, index=px.index)
         mask = (pos.index >= start_ts) & (pos.index <= end_ts)
-        pos.loc[mask] = 2.0
+        pos.loc[mask] = 1.0
 
         return pos

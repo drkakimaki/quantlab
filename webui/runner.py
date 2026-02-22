@@ -200,17 +200,45 @@ def _run_buy_and_hold(
     periods: list[tuple[str, dt.date, dt.date]],
     config: BacktestConfig,
 ) -> dict[str, tuple[pd.DataFrame, float, int]]:
-    """Run buy and hold strategy."""
+    """Run buy and hold strategy.
+
+    Baseline semantics: buy-and-hold with ~100% notional at entry (unlevered).
+
+    We achieve this by:
+    - setting leverage=1.0 (so required margin ~= notional)
+    - setting lot_per_size per-period so position_size=1 maps to notional ~= initial_capital
+    """
     results = {}
-    
+
     for name, start, end in periods:
         data = load_period_data("XAUUSD", start, end)
+        prices = data["prices"].astype(float)
+
+        # Per-period sizing to target notional ~= initial_capital at entry.
+        px0 = float(prices.iloc[0]) if len(prices) else 1.0
+        contract = float(config.contract_size_per_lot)
+        cap0 = float(config.initial_capital)
+        lot_per_size = cap0 / max(1e-12, (px0 * contract))
+
+        cfg = BacktestConfig(
+            initial_capital=float(config.initial_capital),
+            leverage=1.0,
+            lot_per_size=float(lot_per_size),
+            contract_size_per_lot=float(config.contract_size_per_lot),
+            lag=int(config.lag),
+            max_size=float(config.max_size),
+            margin_policy=str(config.margin_policy),
+            record_executions=bool(config.record_executions),
+            fee_per_lot=float(config.fee_per_lot),
+            spread_per_lot=float(config.spread_per_lot),
+        )
+
         strategy = BuyAndHoldStrategy()
-        result = strategy.run_backtest(data["prices"], config=config)
-        
+        result = strategy.run_backtest(prices, config=cfg)
+
         executions = int((result.df["position"].diff().abs() > 0).sum())
-        results[name] = (result.df, result.final_equity - 1000.0, executions)
-    
+        results[name] = (result.df, result.final_equity - float(cfg.initial_capital), executions)
+
     return results
 
 
