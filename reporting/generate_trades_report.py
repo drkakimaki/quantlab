@@ -21,8 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .trade_breakdown import build_trade_ledger
-from .trade_common import duration_bin, agg_trade_table, profit_factor
+from .trade_breakdown import build_trade_ledger, duration_bin, agg_trade_table, profit_factor
 
 
 def _fig_to_data_uri(fig) -> str:
