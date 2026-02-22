@@ -84,7 +84,7 @@ def test_best_trend_2024_2025_position_equity_series_regression() -> None:
     if not GOLDEN.exists() or not CFG.exists():
         raise AssertionError(
             f"Missing golden files. Expected {GOLDEN} and {CFG}. "
-            "Run scripts/regression/update_golden_best_trend_2024_2025.py"
+            "Run tests/regression/update_golden_best_trend_2024_2025.py"
         )
 
     cfg = yaml.safe_load(CFG.read_text()) or {}
