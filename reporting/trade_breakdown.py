@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ..engine.trades import extract_trade_log
+from .trade_common import duration_bin, agg_trade_table
 
 
 @dataclass(frozen=True)
@@ -20,20 +21,8 @@ class TradeBreakdownPaths:
 
 
 def _duration_bin(bars: pd.Series) -> pd.Categorical:
-    # Simple, stable bins that work for most intraday strategies.
-    bins = [-np.inf, 1, 3, 6, 12, 24, 48, 96, 192, np.inf]
-    labels = [
-        "1",
-        "2-3",
-        "4-6",
-        "7-12",
-        "13-24",
-        "25-48",
-        "49-96",
-        "97-192",
-        "193+",
-    ]
-    return pd.cut(bars.astype(float), bins=bins, labels=labels)
+    # Backward-compatible alias.
+    return duration_bin(bars)
 
 
 def build_trade_ledger(
@@ -123,28 +112,8 @@ def build_trade_ledger(
 
 
 def _agg_table(trades: pd.DataFrame, group_key: str) -> pd.DataFrame:
-    g = trades.groupby(group_key, dropna=False)
-    out = pd.DataFrame(
-        {
-            "n_trades": g.size(),
-            "win_rate": g["win"].mean(),
-            "avg_return": g["trade_return"].mean(),
-            "median_return": g["trade_return"].median(),
-            "sum_pnl": g["pnl_net"].sum(),
-            "avg_pnl": g["pnl_net"].mean(),
-            "sum_costs": g["costs_total"].sum(),
-            "avg_costs": g["costs_total"].mean(),
-            "avg_bars": g["bars"].mean(),
-        }
-    )
-
-    # Profit factor (wins / losses)
-    wins = trades.loc[trades["pnl_net"] > 0].groupby(group_key)["pnl_net"].sum()
-    losses = trades.loc[trades["pnl_net"] < 0].groupby(group_key)["pnl_net"].sum().abs()
-    pf = (wins / losses).replace([np.inf, -np.inf], np.nan)
-    out["profit_factor"] = pf
-
-    return out.reset_index().sort_values("sum_pnl", ascending=False)
+    # Backward-compatible alias.
+    return agg_trade_table(trades, group_key)
 
 
 def write_trade_breakdown(
@@ -198,7 +167,7 @@ def write_trade_breakdown(
     et = pd.to_datetime(trades["entry_time"])
     trades = trades.copy()
     trades["entry_month"] = et.dt.to_period("M").astype(str)
-    trades["duration_bin"] = _duration_bin(trades["bars"])
+    trades["duration_bin"] = duration_bin(trades["bars"])
 
     # Write ledger
     trades.to_csv(trades_csv, index=False)

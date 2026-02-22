@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 from .trade_breakdown import build_trade_ledger
+from .trade_common import duration_bin, agg_trade_table, profit_factor
 
 
 def _fig_to_data_uri(fig) -> str:
@@ -33,50 +34,21 @@ def _fig_to_data_uri(fig) -> str:
 
 
 def _duration_bin(bars: pd.Series) -> pd.Categorical:
-    bins = [-np.inf, 1, 3, 6, 12, 24, 48, 96, 192, np.inf]
-    labels = [
-        "1",
-        "2-3",
-        "4-6",
-        "7-12",
-        "13-24",
-        "25-48",
-        "49-96",
-        "97-192",
-        "193+",
-    ]
-    return pd.cut(bars.astype(float), bins=bins, labels=labels)
+    # Backward-compatible alias.
+    return duration_bin(bars)
 
 
 def _profit_factor(pnl: pd.Series) -> float:
-    pnl = pnl.astype(float)
-    wins = float(pnl[pnl > 0].sum())
-    losses = float((-pnl[pnl < 0]).sum())
-    if losses <= 0:
-        return float("inf") if wins > 0 else float("nan")
-    return wins / losses
+    # Backward-compatible alias.
+    return profit_factor(pnl)
 
 
 def _agg(trades: pd.DataFrame, key: str) -> pd.DataFrame:
-    g = trades.groupby(key, dropna=False)
-    out = pd.DataFrame(
-        {
-            "n_trades": g.size(),
-            "win_rate": g["win"].mean(),
-            "avg_return": g["trade_return"].mean(),
-            "sum_pnl": g["pnl_net"].sum(),
-            "avg_bars": g["bars"].mean(),
-        }
-    ).reset_index()
-
-    # Profit factor per bucket
-    pf = []
-    for val, sub in trades.groupby(key, dropna=False):
-        pf.append((val, _profit_factor(sub["pnl_net"])))
-    pf_df = pd.DataFrame(pf, columns=[key, "profit_factor"])
-    out = out.merge(pf_df, on=key, how="left")
-
-    return out.sort_values("sum_pnl", ascending=False)
+    # Backward-compatible alias.
+    out = agg_trade_table(trades, key)
+    # Match this report's expected column subset/order.
+    keep = [key, "n_trades", "win_rate", "avg_return", "sum_pnl", "avg_bars", "profit_factor"]
+    return out[keep]
 
 
 _MONTH_MAP = {
@@ -133,7 +105,7 @@ def report_periods_trades_html(
                 et = et.dt.tz_convert("UTC").dt.tz_localize(None)
 
             tl["entry_month_of_year"] = et.dt.month.map(_MONTH_MAP)
-            tl["duration_bin"] = _duration_bin(tl["bars"])
+            tl["duration_bin"] = duration_bin(tl["bars"])
 
             ledgers.append(tl)
             per_period[name] = tl
