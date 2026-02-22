@@ -34,10 +34,10 @@ What this is *not*:
 - The previous Buy & Hold implementation was implicitly **levered** (fixed lots + `position=2.0`), which overstated baseline PnL/DD.
 
 ### Current best_trend headline metrics (XAUUSD)
-(from `best_trend.html`)
-- 2020-2022: PnL **36.95%**, MaxDD **-16.62%**, Sharpe **0.59**
-- 2023-2025: PnL **332.07%**, MaxDD **-14.35%**, Sharpe **2.12**
-- 2026: PnL **139.72%**, MaxDD **-10.53%**, Sharpe **5.63**
+(from `rnd run` / canonical config)
+- 2020-2022: PnL **32.47%**, MaxDD **-17.39%**, Sharpe **0.55**
+- 2023-2025: PnL **346.86%**, MaxDD **-14.49%**, Sharpe **2.16**
+- 2026: PnL **161.39%**, MaxDD **-9.57%**, Sharpe **6.40**
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
@@ -45,7 +45,8 @@ What this is *not*:
 - Base: 5m OHLC close
 - HTF: 15m OHLC confirm
 - Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
-- Modules ON: EMA-sep, NoChop, Corr stability (+ sizing), FOMC force-flat, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, ShockExit
+- Modules ON: EMA-sep, NoChop, FOMC force-flat, **EMA-strength sizing (size=2 only on strong separation)**, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, **Mid-duration loss limiter (13–48, -1%)**, **Time-stop (24 bars, -0.5%)**, ShockExit
+- Corr stability gate: **OFF** (removed for simplicity; replaced by EMA-strength sizing)
 - Discrete sizing: 0.01 / 0.02 lots only
 
 ---
@@ -68,10 +69,14 @@ What this is *not*:
 ## 3) Strategy-specific insights — best_trend (XAUUSD)
 
 ### What mattered (from sweeps)
-- Ablation: corr is the main risk/return lever (also sizing); EMA-sep is essential; NoChop matters especially in 2026.
+- Ablation (when controlling for sizing): **NoChop** and **Churn** are the dominant gates; HTF confirm also matters.
   - Source: `reports/trend_based/decisions/2026-02-14_ablation/`
-- Corr tuning: OR logic dominated; stability (flip limits/lookback) mattered more than abs(corr) threshold; promoted config = XAG strict flips + EUR more permissive, combined via OR.
-  - Source: `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/`
+- Corr module: historically a big lever mainly because it combined **filtering + sizing**. We have now removed it and replaced the sizing role with an **EMA-strength sizing** gate to reduce parameters.
+  - Source: `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/`
+- Post-entry controls: the biggest incremental improvements came from (a) a mid-duration loss limiter (13–48 bars, stop -1%) and (b) a time-stop (if not recovered above -0.5% by 24 bars).
+  - Sources:
+    - `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/`
+    - `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/`
 - FOMC tuning: wide windows/whole-day blocking too blunt; best ended up **force-flat** with **19:00Z pre=2h post=0.5h** under tuned modules.
   - Source: `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 
@@ -101,11 +106,14 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 
 ### Promotion / hyperparam work
 - `reports/trend_based/decisions/2026-02-14_filters_hyperparam_search/`
-- `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/`
+- `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/` (historical; corr gate now OFF)
 - `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - `reports/trend_based/decisions/2026-02-14_shock_exits/`
 - `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
 - `reports/trend_based/decisions/2026-02-21_june_softcap_size1_v0/`
+- `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/` (corr removed; sizing via EMA strength)
+- `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/` (post-entry loss limiter)
+- `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/` (post-entry time-stop)
 
 ### Risk research
 - `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`

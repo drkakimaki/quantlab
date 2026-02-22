@@ -82,20 +82,25 @@ trade_log = extract_trade_log(result.df)
 
 ## Composable Gates
 
-`TrendStrategyWithGates` applies: `base → HTF → EMASep → NoChop → Corr → TimeFilter → SeasonalitySizeCap → Churn → Risk`
+`TrendStrategyWithGates` applies (current order):
+
+`base → HTF → EMASep → NoChop → (Corr optional) → TimeFilter → EMA-strength sizing → SeasonalitySizeCap → Churn → Mid-loss limiter → Time-stop → Risk`
 
 | Gate | Purpose |
 |------|---------|
 | `HTFConfirmGate` | 15m SMA alignment |
 | `EMASeparationGate` | EMA separation > k×ATR |
 | `NoChopGate` | Avoid choppy markets |
-| `CorrelationGate` | XAG/EUR correlation stability |
+| `CorrelationGate` | XAG/EUR correlation stability (**currently disabled in canonical**) |
 | `TimeFilterGate` | FOMC force-flat windows |
+| `EMAStrengthSizingGate` | Size=2 on strong EMA separation (segment-held) |
 | `SeasonalitySizeCapGate` | Month-based size cap (e.g. June size<=1) |
 | `ChurnGate` | Entry debounce + re-entry cooldown |
+| `MidDurationLossLimiterGate` | Kill mid-duration losers (e.g. 13–48 bars under -1%) |
+| `TimeStopGate` | Kill trades that fail to recover by N bars |
 | `RiskGate` | Shock exits (+ optional cooldown) |
 
-Gate is ON when config block present, OFF when missing.
+Gate is ON when its config block is present, OFF when missing/null.
 
 ## Data Management
 

@@ -1,6 +1,6 @@
 # Best Trend Variant — Strategy Logic & Parameters (XAUUSD)
 
-**Last updated:** 2026-02-21 (Europe/Berlin) — churn gate promoted to canonical
+**Last updated:** 2026-02-22 (Europe/Berlin) — corr removed; sizing via EMA-strength; added post-entry time-stop + mid-loss limiter
 
 This document describes the current **best trend-following variant** under the (now-default) **account/margin backtest model**.
 
@@ -21,13 +21,14 @@ Reference report:
 **Data sources:**
 - Base: 5m OHLC close (`data/dukascopy_5m_ohlc/XAUUSD/...`)
 - HTF: 15m OHLC (`data/dukascopy_15m_ohlc/XAUUSD/...`)
-- Corr series (5m OHLC close): XAGUSD + EURUSD
+- Corr series: **not used** (corr gate disabled)
 
 **Enabled modules (best config):**
 - HTF EMA separation filter: EMA40/300, TR-ATR20, k=0.05
 - HTF NoChop filter: EMA20, lookback=40, min_closes=24
-- Corr stability (entry-only, segment-held):
-  - XAGUSD(win=40, abs≥0.10, flips≤0/50) OR EURUSD(win=75, abs≥0.10, flips≤5/75)
+- EMA-strength sizing (entry-only, segment-held):
+  - Size=2 when EMA separation is *strong*: `(EMA40-EMA300) > strong_k * ATR20` on HTF (15m)
+  - Canonical: `strong_k=0.20`
 - FOMC time filter (force-flat):
   - Force flat around **19:00 UTC (pre=2h, post=0.5h)** on FOMC decision days
   - Source: `data/econ_calendar/fomc_decision_days.csv` (date-only)
@@ -37,9 +38,14 @@ Reference report:
 - Churn gate (enabled):
   - Entry debounce: `min_on_bars=3`
   - Re-entry cooldown: `cooldown_bars=8`
+- Mid-duration loss limiter (enabled):
+  - If a segment is within **13–48 bars since entry** and unrealized return <= **-1.0%**, kill the remainder of the segment.
+- Time-stop (enabled):
+  - If a segment is **>=24 bars old** and unrealized return is still <= **-0.5%**, kill the remainder of the segment.
 - Seasonality size cap (enabled):
   - June soft cap: size <= 1.0 during June (`seasonality.month_size_cap: {6: 1.0}`)
-- Sizing mode: confirm (one=1.0, both=2.0 → sizes map to 0.01/0.02 lots)
+- Corr stability gate: **OFF**
+- Sizing tiers: base=1.0, strong=2.0 (mapped to 0.01/0.02 lots)
 
 **Account / execution model:**
 - Starting capital: $1,000
@@ -76,8 +82,11 @@ These are applied as gates (must all be true to allow a segment):
   - EMA20 on HTF close
   - over last 40 HTF bars: ≥24 closes above EMA20
 
-### 4) Corr stability + sizing (entry-only, held for the segment)
-- Compute rolling corr stability on 5m returns.
+### 4) EMA-strength sizing (entry-only, held for the segment)
+- Use HTF (15m) EMA separation strength to size up.
+- Base size = 1.
+- Strong size = 2 when `(EMA_fast - EMA_slow) > strong_k * ATR_n` (computed on HTF).
+- Uses last closed HTF info (shifted by 1 bar) and is held for the whole segment.
 
 ### 5) FOMC time filter (entry-only)
 - On dates listed in `data/econ_calendar/fomc_decision_days.csv`, force flat within an approximate decision window:
@@ -90,23 +99,25 @@ These are applied as gates (must all be true to allow a segment):
 - Re-entry cooldown: after an exit, block new entries for C bars (`churn.cooldown_bars`).
   - Canonical: `cooldown_bars=8`
 
-### 7) Shock exit (kill-switch)
+### 7) Post-entry controls (enabled)
+
+- **Mid-duration loss limiter**
+  - Within a segment, if `13 <= bars_since_entry <= 48` and unrealized return since entry <= -1.0% (using last closed bar), kill the remainder of the segment.
+
+- **Time-stop**
+  - If `bars_since_entry >= 24` and unrealized return since entry <= -0.5% (using last closed bar), kill the remainder of the segment.
+
+### 8) Shock exit (kill-switch)
 - Compute 5m close-to-close returns on the base series.
 - If **abs(return) ≥ 0.006 (0.6%)** on the *last closed bar* (shifted by 1 bar), then:
   - force flat for the remainder of the current segment
 - This is intentionally discrete (no fractional sizing), aligned with 0.01/0.02 lot constraint.
 
-- Stability condition for each corr series:
-  - `abs(corr) >= min_abs` and `flip_count <= max_flips` over `flip_lookback`
-- Combine: **XAG stable OR EUR stable**.
-
-### 8) Sizing
+### 9) Sizing
 At entry:
-- If corr stability is false on the last closed bar, the entire segment is blocked.
-- If allowed:
-  - (OR mode) exactly one stable → size=1.0 (0.01 lots)
-  - (OR mode) both stable → size=2.0 (0.02 lots)
-  - (AND mode) passing requires both, so sizing always uses the “both” tier (0.02 lots)
+- Default size = 1.0.
+- If EMA-strength condition is true on the last closed bar → size = 2.0.
+- Seasonality cap may reduce size (e.g. June cap to 1.0).
 
 ---
 
@@ -128,7 +139,7 @@ Notable blocks:
 
 - Strategy implementation:
   - `strategies/trend_following.py` → `TrendStrategyWithGates`
-  - Gates: `HTFConfirmGate`, `EMASeparationGate`, `NoChopGate`, `CorrelationGate`, `TimeFilterGate`, `ChurnGate`, `RiskGate`
+  - Gates: `HTFConfirmGate`, `EMASeparationGate`, `NoChopGate`, `TimeFilterGate`, `EMAStrengthSizingGate`, `SeasonalitySizeCapGate`, `ChurnGate`, `MidDurationLossLimiterGate`, `TimeStopGate`, `RiskGate`
 - Backtest engine (unified):
   - `engine/backtest.py` → `backtest_positions_account_margin`
 - Report generation:

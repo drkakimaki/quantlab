@@ -414,6 +414,89 @@ class TimeFilterGate:
         )
 
 
+class EMAStrengthSizingGate:
+    """EMA separation *strength* sizing gate.
+
+    This gate does NOT create entries. It only changes position *size* for bars
+    where the strategy is already long (positions > 0).
+
+    Semantics
+    ---------
+    - Compute EMA_fast, EMA_slow, and ATR on HTF (15m) bars.
+    - Define `strong_ok` when (EMA_fast > EMA_slow) AND (EMA_fast - EMA_slow) > strong_k * ATR.
+    - Decide size at entry (segment-held), using previous-bar info (shift(1)).
+
+    Typical use
+    -----------
+    Keep a conservative base entry condition (e.g. ema_sep with sep_k), but size up
+    when separation is *stronger* (strong_k > sep_k).
+    """
+
+    def __init__(
+        self,
+        *,
+        ema_fast: int = 40,
+        ema_slow: int = 300,
+        atr_n: int = 20,
+        strong_k: float = 0.10,
+        size_base: float = 1.0,
+        size_strong: float = 2.0,
+    ):
+        self.ema_fast = int(ema_fast)
+        self.ema_slow = int(ema_slow)
+        self.atr_n = int(atr_n)
+        self.strong_k = float(strong_k)
+        self.size_base = float(size_base)
+        self.size_strong = float(size_strong)
+
+    @property
+    def name(self) -> str:
+        return f"EMAStrengthSize(k={self.strong_k:g}, {self.size_base:g}/{self.size_strong:g})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        if context is None or "bars_15m" not in context:
+            return positions
+
+        bars = context["bars_15m"].copy()
+        bars.index = pd.to_datetime(bars.index)
+        bars = bars.rename(columns={c: c.lower() for c in bars.columns})
+
+        htf_close = bars["close"].astype(float).dropna()
+
+        ema_f = htf_close.ewm(span=self.ema_fast, adjust=False).mean()
+        ema_s = htf_close.ewm(span=self.ema_slow, adjust=False).mean()
+
+        h = bars["high"].astype(float).reindex(htf_close.index)
+        l = bars["low"].astype(float).reindex(htf_close.index)
+        prev_c = htf_close.shift(1)
+        tr = pd.concat([(h - l).abs(), (h - prev_c).abs(), (l - prev_c).abs()], axis=1).max(axis=1)
+        atr = tr.rolling(self.atr_n, min_periods=self.atr_n).mean()
+
+        strong_ok = (ema_f > ema_s) & ((ema_f - ema_s) > self.strong_k * atr)
+        strong_ok_base = strong_ok.reindex(positions.index).ffill().fillna(False).astype(bool)
+
+        p = positions.fillna(0.0).astype(float)
+        gate_on = p > 0.0
+        entry_bar = gate_on & (~gate_on.shift(1, fill_value=False))
+        seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
+
+        # Decide size using prior-bar info (avoid lookahead)
+        strong_entry = strong_ok_base.shift(1).fillna(False).astype(bool)
+        size_series = pd.Series(self.size_base, index=p.index)
+        size_series = size_series.where(~strong_entry, self.size_strong)
+
+        size_on_entry = size_series.where(entry_bar)
+        size_in_seg = size_on_entry.groupby(seg).ffill().fillna(self.size_base)
+
+        # Apply sizing only when in-position
+        return p.where(~gate_on, size_in_seg)
+
+
 class SeasonalitySizeCapGate:
     """Seasonality-based position size cap.
 
@@ -529,6 +612,267 @@ class ChurnGate:
         return pos
 
 
+class MidDurationLossLimiterGate:
+    """Exit losers in the toxic mid-duration band.
+
+    Motivation
+    ----------
+    Trade breakdown shows a persistent negative expectancy for trades that last
+    ~13–48 bars. This gate targets that regime by force-flattening a segment once
+    it breaches a loss threshold during a specified bar window.
+
+    Semantics
+    ---------
+    - Only applies when already in-position (positions > 0).
+    - For each segment, compute:
+        - bars_since_entry (0-based)
+        - unrealized return since entry: (price / entry_price - 1)
+    - If `min_bars <= bars_since_entry <= max_bars` AND unrealized_return <= stop_ret,
+      then kill the remainder of the segment (set positions to 0 from that point on).
+
+    Anti-lookahead
+    -------------
+    The trigger uses the *last closed bar* information (shifted by 1), consistent
+    with other gates.
+    """
+
+    def __init__(
+        self,
+        *,
+        min_bars: int = 13,
+        max_bars: int = 48,
+        stop_ret: float = -0.01,
+    ):
+        self.min_bars = int(min_bars)
+        self.max_bars = int(max_bars)
+        self.stop_ret = float(stop_ret)
+
+    @property
+    def name(self) -> str:
+        return f"MidDurLoss(min={self.min_bars},max={self.max_bars},ret={self.stop_ret:g})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        p = positions.fillna(0.0).astype(float)
+        px = prices.reindex(p.index).astype(float).ffill()
+
+        on = p > 0.0
+        if not bool(on.any()):
+            return p
+
+        entry = on & (~on.shift(1, fill_value=False))
+        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+
+        # entry price held constant over the segment
+        entry_px = px.where(entry).groupby(seg).ffill()
+
+        # bars since entry within each segment
+        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+
+        # unrealized return since entry (safe when entry_px is nan outside segments)
+        uret = (px / entry_px) - 1.0
+
+        # Use last-closed-bar info for trigger
+        uret_lag = uret.shift(1)
+        bars_lag = bars_since.shift(1)
+
+        in_window = (bars_lag >= self.min_bars) & (bars_lag <= self.max_bars)
+        trigger = on & in_window & (uret_lag <= self.stop_ret)
+
+        if not bool(trigger.any()):
+            return p
+
+        # Kill remainder of segment once triggered
+        kill = trigger.groupby(seg).cummax()
+        return p.where(~kill, 0.0)
+
+
+class TimeStopGate:
+    """Time-stop / no-recovery exit.
+
+    If a position has not achieved at least `min_ret` return since entry by a
+    specified holding age, we force-flat the remainder of the segment.
+
+    This targets the toxic mid-duration region without adding new entry filters.
+
+    Semantics
+    ---------
+    - Compute unrealized return since entry: (price/entry_price - 1)
+    - When bars_since_entry >= bar_n AND unrealized_return(last_closed) <= min_ret:
+      kill the remainder of the segment.
+
+    Anti-lookahead: uses last closed bar info (shift(1)).
+    """
+
+    def __init__(self, *, bar_n: int = 24, min_ret: float = 0.0):
+        self.bar_n = int(bar_n)
+        self.min_ret = float(min_ret)
+
+    @property
+    def name(self) -> str:
+        return f"TimeStop(n={self.bar_n},min_ret={self.min_ret:g})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        p = positions.fillna(0.0).astype(float)
+        px = prices.reindex(p.index).astype(float).ffill()
+
+        on = p > 0.0
+        if not bool(on.any()):
+            return p
+
+        entry = on & (~on.shift(1, fill_value=False))
+        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+        entry_px = px.where(entry).groupby(seg).ffill()
+        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        uret = (px / entry_px) - 1.0
+
+        uret_lag = uret.shift(1)
+        bars_lag = bars_since.shift(1)
+
+        trigger = on & (bars_lag >= self.bar_n) & (uret_lag <= self.min_ret)
+        if not bool(trigger.any()):
+            return p
+
+        kill = trigger.groupby(seg).cummax()
+        return p.where(~kill, 0.0)
+
+
+class ProfitMilestoneGate:
+    """Kill trades that fail to reach a profit milestone by N bars.
+
+    Idea
+    ----
+    The long-duration winners tend to show profit early at some point, while toxic
+    mid-duration trades often never meaningfully get off the ground. This gate
+    exits a segment if it hasn't *ever* reached `milestone_ret` unrealized return
+    by `bar_n` bars since entry.
+
+    Semantics
+    ---------
+    - Compute unrealized return since entry: (price/entry_price - 1)
+    - Track running max of unrealized return within each segment.
+    - If bars_since_entry >= bar_n AND running_max_unrealized(last_closed) < milestone_ret:
+      kill the remainder of the segment.
+
+    Anti-lookahead: uses last closed bar info (shift(1)).
+    """
+
+    def __init__(self, *, bar_n: int = 24, milestone_ret: float = 0.002):
+        self.bar_n = int(bar_n)
+        self.milestone_ret = float(milestone_ret)
+
+    @property
+    def name(self) -> str:
+        return f"ProfitMilestone(n={self.bar_n},ret={self.milestone_ret:g})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        p = positions.fillna(0.0).astype(float)
+        px = prices.reindex(p.index).astype(float).ffill()
+
+        on = p > 0.0
+        if not bool(on.any()):
+            return p
+
+        entry = on & (~on.shift(1, fill_value=False))
+        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+        entry_px = px.where(entry).groupby(seg).ffill()
+        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        uret = (px / entry_px) - 1.0
+
+        run_max = uret.groupby(seg).cummax()
+
+        run_max_lag = run_max.shift(1)
+        bars_lag = bars_since.shift(1)
+
+        trigger = on & (bars_lag >= self.bar_n) & (run_max_lag < self.milestone_ret)
+        if not bool(trigger.any()):
+            return p
+
+        kill = trigger.groupby(seg).cummax()
+        return p.where(~kill, 0.0)
+
+
+class RollingMaxExitGate:
+    """Exit if recent max unrealized return is too low (stagnation filter).
+
+    This is a post-entry control intended to hit mid-duration "never gets going"
+    trades without requiring a one-time milestone.
+
+    Semantics
+    ---------
+    - Compute unrealized return since entry: uret = price/entry_price - 1
+    - For each segment, compute rolling max of uret over the last `window_bars`.
+    - If bars_since_entry >= min_bars AND rolling_max_uret(last_closed) < min_peak_ret:
+      kill the remainder of the segment.
+
+    Anti-lookahead: uses last closed bar info (shift(1)).
+    """
+
+    def __init__(
+        self,
+        *,
+        window_bars: int = 24,
+        min_bars: int = 24,
+        min_peak_ret: float = 0.0,
+    ):
+        self.window_bars = int(window_bars)
+        self.min_bars = int(min_bars)
+        self.min_peak_ret = float(min_peak_ret)
+
+    @property
+    def name(self) -> str:
+        return f"RollingMaxExit(w={self.window_bars},min={self.min_bars},peak={self.min_peak_ret:g})"
+
+    def __call__(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        p = positions.fillna(0.0).astype(float)
+        px = prices.reindex(p.index).astype(float).ffill()
+
+        on = p > 0.0
+        if not bool(on.any()):
+            return p
+
+        entry = on & (~on.shift(1, fill_value=False))
+        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+        entry_px = px.where(entry).groupby(seg).ffill()
+        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        uret = (px / entry_px) - 1.0
+
+        # Rolling max within each segment
+        def _roll_max(s: pd.Series) -> pd.Series:
+            return s.rolling(self.window_bars, min_periods=1).max()
+
+        roll_max = uret.groupby(seg, group_keys=False).apply(_roll_max)
+
+        roll_max_lag = roll_max.shift(1)
+        bars_lag = bars_since.shift(1)
+
+        trigger = on & (bars_lag >= self.min_bars) & (roll_max_lag < self.min_peak_ret)
+        if not bool(trigger.any()):
+            return p
+
+        kill = trigger.groupby(seg).cummax()
+        return p.where(~kill, 0.0)
+
+
 class RiskGate:
     """Risk management gate.
 
@@ -634,10 +978,11 @@ class TrendStrategy(StrategyBase):
 
 class TrendStrategyWithGates(StrategyBase):
     """Trend strategy built from composable gates.
-    
+
     Gates are applied in sequence:
-        base_signal -> htf -> ema_sep -> nochop -> corr -> time_filter -> nochop_exit -> risk
-    
+        base_signal -> htf -> ema_sep -> nochop -> corr -> time_filter -> nochop_exit
+        -> ema_strength_sizing -> seasonality_cap -> churn -> risk
+
     Each gate implements filtering/risk logic.
     """
 
@@ -651,8 +996,14 @@ class TrendStrategyWithGates(StrategyBase):
         nochop_gate: NoChopGate | None = None,
         corr_gate: CorrelationGate | None = None,
         time_filter_gate: TimeFilterGate | None = None,
+        ema_strength_sizing_gate: EMAStrengthSizingGate | None = None,
         seasonality_gate: SeasonalitySizeCapGate | None = None,
         churn_gate: ChurnGate | None = None,
+        mid_loss_gate_early: MidDurationLossLimiterGate | None = None,
+        mid_loss_gate: MidDurationLossLimiterGate | None = None,
+        time_stop_gate: TimeStopGate | None = None,
+        profit_milestone_gate: ProfitMilestoneGate | None = None,
+        rolling_max_exit_gate: RollingMaxExitGate | None = None,
         risk_gate: RiskGate | None = None,
     ):
         self.fast = fast
@@ -662,8 +1013,14 @@ class TrendStrategyWithGates(StrategyBase):
         self.nochop_gate = nochop_gate
         self.corr_gate = corr_gate
         self.time_filter_gate = time_filter_gate
+        self.ema_strength_sizing_gate = ema_strength_sizing_gate
         self.seasonality_gate = seasonality_gate
         self.churn_gate = churn_gate
+        self.mid_loss_gate_early = mid_loss_gate_early
+        self.mid_loss_gate = mid_loss_gate
+        self.time_stop_gate = time_stop_gate
+        self.profit_milestone_gate = profit_milestone_gate
+        self.rolling_max_exit_gate = rolling_max_exit_gate
         self.risk_gate = risk_gate
 
     @property
@@ -674,8 +1031,14 @@ class TrendStrategyWithGates(StrategyBase):
             self.nochop_gate,
             self.corr_gate,
             self.time_filter_gate,
+            self.ema_strength_sizing_gate,
             self.seasonality_gate,
             self.churn_gate,
+            self.mid_loss_gate_early,
+            self.mid_loss_gate,
+            self.time_stop_gate,
+            self.profit_milestone_gate,
+            self.rolling_max_exit_gate,
             self.risk_gate,
         ] if g is not None]
         gate_names = [g.name for g in gates]
@@ -691,6 +1054,8 @@ class TrendStrategyWithGates(StrategyBase):
             reqs["prices_eur"] = "EURUSD prices (optional)"
         if self.time_filter_gate and self.time_filter_gate.allow_mask is None:
             reqs["allow_mask"] = "Time filter allow mask"
+        if self.ema_strength_sizing_gate:
+            reqs["bars_15m"] = "15-minute OHLC (for EMA strength sizing)"
         return reqs
 
     def generate_positions(
@@ -729,13 +1094,36 @@ class TrendStrategyWithGates(StrategyBase):
         if self.nochop_gate and self.nochop_gate.exit_bad_bars > 0:
             pos = self.nochop_gate.apply_exit_bad_bars(pos)
 
-        # Seasonality size cap (after sizing/corr + time_filter, before churn/risk)
+        # EMA strength sizing (after time_filter + exit_bad_bars, before seasonality cap)
+        if self.ema_strength_sizing_gate:
+            pos = self.ema_strength_sizing_gate(pos, px, context)
+
+        # Seasonality size cap (after sizing, before churn/risk)
         if self.seasonality_gate:
             pos = self.seasonality_gate(pos, px, context)
 
-        # Churn gate (after seasonality cap, before risk)
+        # Churn gate (after seasonality cap, before mid-loss/risk)
         if self.churn_gate:
             pos = self.churn_gate(pos, px, context)
+
+        # Mid-duration loss limiter (two-stage optional): early window then mid window
+        if self.mid_loss_gate_early:
+            pos = self.mid_loss_gate_early(pos, px, context)
+
+        if self.mid_loss_gate:
+            pos = self.mid_loss_gate(pos, px, context)
+
+        # Time-stop (no-recovery) exit (after loss limiter, before milestone/risk)
+        if self.time_stop_gate:
+            pos = self.time_stop_gate(pos, px, context)
+
+        # Profit milestone gate (after time-stop, before rolling-max/risk)
+        if self.profit_milestone_gate:
+            pos = self.profit_milestone_gate(pos, px, context)
+
+        # Rolling max exit gate (after milestone, before risk)
+        if self.rolling_max_exit_gate:
+            pos = self.rolling_max_exit_gate(pos, px, context)
 
         if self.risk_gate:
             pos = self.risk_gate(pos, px, context)
@@ -805,6 +1193,22 @@ class TrendStrategyWithGates(StrategyBase):
                 allow_mask=allow_mask,
             )
 
+        # EMA strength sizing gate (optional)
+        ema_strength_sizing_gate = None
+        ema_strength_cfg = config.get("ema_strength_sizing", {}) or {}
+        if ema_strength_cfg:
+            # Pull EMA/ATR params from ema_sep when available, else allow override.
+            base_ema = config.get("ema_sep", {}) or {}
+            sizing_cfg = config.get("sizing", {}) or {}
+            ema_strength_sizing_gate = EMAStrengthSizingGate(
+                ema_fast=int(ema_strength_cfg.get("ema_fast", base_ema.get("ema_fast", 40))),
+                ema_slow=int(ema_strength_cfg.get("ema_slow", base_ema.get("ema_slow", 300))),
+                atr_n=int(ema_strength_cfg.get("atr_n", base_ema.get("atr_n", 20))),
+                strong_k=float(ema_strength_cfg.get("strong_k", 0.10)),
+                size_base=float(sizing_cfg.get("confirm_size_one", 1.0)),
+                size_strong=float(sizing_cfg.get("confirm_size_both", 2.0)),
+            )
+
         # Seasonality gate (optional)
         seasonality_gate = None
         seasonality_cfg = config.get("seasonality", {}) or {}
@@ -821,6 +1225,53 @@ class TrendStrategyWithGates(StrategyBase):
             churn_gate = ChurnGate(
                 min_on_bars=int(churn_cfg.get("min_on_bars", 1) or 1),
                 cooldown_bars=int(churn_cfg.get("cooldown_bars", 0) or 0),
+            )
+
+        # Mid-duration loss limiter gate (optional; can be two-stage)
+        mid_loss_gate_early = None
+        early_cfg = config.get("mid_loss_limiter_early", {}) or {}
+        if early_cfg:
+            mid_loss_gate_early = MidDurationLossLimiterGate(
+                min_bars=int(early_cfg.get("min_bars", 7)),
+                max_bars=int(early_cfg.get("max_bars", 12)),
+                stop_ret=float(early_cfg.get("stop_ret", -0.006)),
+            )
+
+        mid_loss_gate = None
+        mid_loss_cfg = config.get("mid_loss_limiter", {}) or {}
+        if mid_loss_cfg:
+            mid_loss_gate = MidDurationLossLimiterGate(
+                min_bars=int(mid_loss_cfg.get("min_bars", 13)),
+                max_bars=int(mid_loss_cfg.get("max_bars", 48)),
+                stop_ret=float(mid_loss_cfg.get("stop_ret", -0.01)),
+            )
+
+        # Time-stop gate (optional)
+        time_stop_gate = None
+        ts_cfg = config.get("time_stop", {}) or {}
+        if ts_cfg:
+            time_stop_gate = TimeStopGate(
+                bar_n=int(ts_cfg.get("bar_n", 24)),
+                min_ret=float(ts_cfg.get("min_ret", 0.0)),
+            )
+
+        # Profit milestone gate (optional)
+        profit_milestone_gate = None
+        pm_cfg = config.get("profit_milestone", {}) or {}
+        if pm_cfg:
+            profit_milestone_gate = ProfitMilestoneGate(
+                bar_n=int(pm_cfg.get("bar_n", 24)),
+                milestone_ret=float(pm_cfg.get("milestone_ret", 0.002)),
+            )
+
+        # Rolling-max exit gate (optional)
+        rolling_max_exit_gate = None
+        rm_cfg = config.get("rolling_max_exit", {}) or {}
+        if rm_cfg:
+            rolling_max_exit_gate = RollingMaxExitGate(
+                window_bars=int(rm_cfg.get("window_bars", 24)),
+                min_bars=int(rm_cfg.get("min_bars", 24)),
+                min_peak_ret=float(rm_cfg.get("min_peak_ret", 0.0)),
             )
 
         # Risk gate
@@ -842,8 +1293,14 @@ class TrendStrategyWithGates(StrategyBase):
             nochop_gate=nochop_gate,
             corr_gate=corr_gate,
             time_filter_gate=time_filter_gate,
+            ema_strength_sizing_gate=ema_strength_sizing_gate,
             seasonality_gate=seasonality_gate,
             churn_gate=churn_gate,
+            mid_loss_gate_early=mid_loss_gate_early,
+            mid_loss_gate=mid_loss_gate,
+            time_stop_gate=time_stop_gate,
+            profit_milestone_gate=profit_milestone_gate,
+            rolling_max_exit_gate=rolling_max_exit_gate,
             risk_gate=risk_gate,
         )
 
@@ -860,7 +1317,12 @@ __all__ = [
     "NoChopGate",
     "CorrelationGate",
     "TimeFilterGate",
+    "EMAStrengthSizingGate",
     "SeasonalitySizeCapGate",
     "ChurnGate",
+    "MidDurationLossLimiterGate",
+    "TimeStopGate",
+    "ProfitMilestoneGate",
+    "RollingMaxExitGate",
     "RiskGate",
 ]

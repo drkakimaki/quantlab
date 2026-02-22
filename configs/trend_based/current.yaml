@@ -52,6 +52,11 @@ ema_sep:
   atr_n: 20
   sep_k: 0.05
 
+# New: size up to 2.0 when EMA separation is *strong* (relative to ATR).
+# Uses HTF (15m) EMAs/ATR, decided at entry and held for the segment.
+ema_strength_sizing:
+  strong_k: 0.20
+
 nochop:
   ema: 20
   lookback: 40
@@ -61,21 +66,11 @@ nochop:
   entry_held: false
   exit_bad_bars: 0
 
-corr:
-  logic: or
-  xag:
-    window: 40
-    min_abs: 0.10
-    flip_lookback: 50
-    max_flips: 0
-  eur:
-    window: 75
-    min_abs: 0.10
-    flip_lookback: 75
-    max_flips: 5
+# corr gate disabled (we're replacing its sizing role elsewhere)
+corr: null
 
+# sizing tiers kept for later use by a dedicated sizing gate (not corr)
 sizing:
-  # "Confirm" sizing: size is decided at entry from last-closed info and held for the segment.
   confirm_size_one: 1.0
   confirm_size_both: 2.0
 
@@ -92,6 +87,17 @@ time_filter:
 churn:
   min_on_bars: 3
   cooldown_bars: 8
+
+# Mid-duration loss limiter (targets the 13–48 bar toxic zone)
+mid_loss_limiter:
+  min_bars: 13
+  max_bars: 48
+  stop_ret: -0.010
+
+# Time-stop: if not recovered above -0.5% by 24 bars, kill the segment
+time_stop:
+  bar_n: 24
+  min_ret: -0.005
 
 seasonality:
   # Soft June seasonality: cap size to 1.0 (disable size=2 tier) during June.
