@@ -23,6 +23,10 @@ reports/_tmp_*/
 reports/**/raw/**
 *.parquet
 
+# coverage
+.coverage
+htmlcov/
+
 # editor / OS
 .vscode/
 .idea/
