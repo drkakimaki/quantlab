@@ -19,6 +19,8 @@ roots:
 
 periods:
   mode: three_block   # three_block | yearly
+  # Holdout periods: shown in reports/WebUI, excluded from rnd scoring (sweeps/ablations/experiments)
+  score_exclude: ["2026"]
 
   three_block:
     p1: { name: "2020-2022", start: "2020-01-01", end: "2022-12-31" }

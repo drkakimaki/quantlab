@@ -37,7 +37,9 @@ What this is *not*:
 (from `rnd run` / canonical config)
 - 2020-2022: PnL **32.47%**, MaxDD **-17.39%**, Sharpe **0.55**
 - 2023-2025: PnL **346.86%**, MaxDD **-14.49%**, Sharpe **2.16**
-- 2026: PnL **161.39%**, MaxDD **-9.57%**, Sharpe **6.40**
+- 2026 (HOLDOUT): PnL **161.39%**, MaxDD **-9.57%**, Sharpe **6.40**
+
+Note: `periods.score_exclude: ["2026"]` means 2026 is **excluded from optimization/scoring**, but still shown in reports.
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 

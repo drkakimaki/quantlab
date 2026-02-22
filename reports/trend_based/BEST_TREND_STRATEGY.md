@@ -13,6 +13,9 @@ Reference report:
 
 ## Active config (as currently run)
 
+**Holdout policy (important):**
+- 2026 is treated as a **holdout**: it is included in reports/WebUI output, but excluded from `rnd.py` scoring and sweep optimization via `periods.score_exclude: ["2026"]`.
+
 **Periods (as used in the canonical report config):**
 - `2020-2022`: 2020-01-01 → 2022-12-31
 - `2023-2025`: 2023-01-01 → 2025-12-31

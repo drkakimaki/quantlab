@@ -95,7 +95,17 @@ def _score_candidate(
     *,
     dd_cap_percent: float,
     initial_capital: float = 1000.0,
+    score_exclude: list[str] | set[str] | None = None,
 ) -> tuple[CandidateScore, pd.DataFrame]:
+    """Score a candidate across periods.
+
+    `score_exclude` removes matching period names from the objective/constraints,
+    but the returned dataframe still includes all periods (with a `scored` flag)
+    for transparency.
+    """
+
+    exclude = set(score_exclude or [])
+
     rows = []
     sum_pnl = 0.0
     maxdds = []
@@ -107,7 +117,11 @@ def _score_candidate(
         else:
             pnl, maxdd, s = _period_stats(bt, initial_capital=initial_capital)
 
-        rows.append({"period": name, "pnl_percent": pnl, "maxdd_percent": maxdd, "sharpe": s})
+        scored = (name not in exclude)
+        rows.append({"period": name, "pnl_percent": pnl, "maxdd_percent": maxdd, "sharpe": s, "scored": bool(scored)})
+
+        if not scored:
+            continue
 
         if np.isfinite(pnl):
             sum_pnl += float(pnl)
@@ -134,7 +148,8 @@ def _score_candidate(
     )
 
     df = pd.DataFrame(rows)
-    # Totals row for convenience
+
+    # Totals row is the *score total* (i.e. excludes holdout periods).
     df_tot = pd.DataFrame(
         [
             {
@@ -142,6 +157,7 @@ def _score_candidate(
                 "pnl_percent": score.sum_pnl,
                 "maxdd_percent": score.worst_maxdd,
                 "sharpe": score.avg_sharpe,
+                "scored": True,
             }
         ]
     )
@@ -258,20 +274,25 @@ def _write_decision_bundle(
 
     (d / "notes.json").write_text(json.dumps(notes, indent=2, sort_keys=True), encoding="utf-8")
 
+    holdout_line = ""
+    if notes.get("score_exclude"):
+        holdout_line = f"Holdout (excluded from score): {notes.get('score_exclude')}\n\n"
+
     decision_md = (
         f"# Decision: {slug}\n\n"
         f"Timestamp: {dt.datetime.now().isoformat(timespec='seconds')}\n\n"
         f"Objective: maximize sum(period PnL%) subject to worst MaxDD <= {notes['dd_cap_percent']}%\n\n"
-        f"## Best score\n\n"
-        f"- OK under cap: {score.ok}\n"
-        f"- Sum PnL%: {score.sum_pnl:.2f}\n"
-        f"- Worst MaxDD%: {score.worst_maxdd:.2f}\n"
-        f"- Avg Sharpe: {score.avg_sharpe:.2f}\n\n"
-        f"## Files\n\n"
-        f"- best.yaml\n"
-        f"- results.csv\n"
-        f"- top_k.csv (if sweep)\n"
-        f"- notes.json\n"
+        + holdout_line
+        + f"## Best score\n\n"
+        + f"- OK under cap: {score.ok}\n"
+        + f"- Sum PnL%: {score.sum_pnl:.2f}\n"
+        + f"- Worst MaxDD%: {score.worst_maxdd:.2f}\n"
+        + f"- Avg Sharpe: {score.avg_sharpe:.2f}\n\n"
+        + f"## Files\n\n"
+        + f"- best.yaml\n"
+        + f"- results.csv\n"
+        + f"- top_k.csv (if sweep)\n"
+        + f"- notes.json\n"
     )
     (d / "DECISION.md").write_text(decision_md, encoding="utf-8")
 
@@ -299,10 +320,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         cfg["periods"] = p
 
     period_dfs = _run_best_trend_periods(cfg)
+
+    score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
     score, results_df = _score_candidate(
         period_dfs,
         dd_cap_percent=float(args.dd_cap),
         initial_capital=float(args.initial_capital),
+        score_exclude=score_exclude,
     )
 
     text = (
@@ -325,6 +349,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             "maxdd_violation": float(score.maxdd_violation),
         },
         "periods": results_df.to_dict(orient="records"),
+        "score_exclude": list(score_exclude),
     }
 
     _emit(args, payload=payload, text=text)
@@ -336,6 +361,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             "mode": (cfg.get("periods", {}) or {}).get("mode"),
             "dd_cap_percent": float(args.dd_cap),
             "initial_capital": float(args.initial_capital),
+            "score_exclude": list(score_exclude),
         }
         d = _write_decision_bundle(
             slug=args.decision_slug,
@@ -446,7 +472,13 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             _set_in(cfg, k, v)
 
         period_dfs = _run_best_trend_periods(cfg, prepared=prepared)
-        score, results_df = _score_candidate(period_dfs, dd_cap_percent=dd_cap, initial_capital=initial_capital)
+        score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
+        score, results_df = _score_candidate(
+            period_dfs,
+            dd_cap_percent=dd_cap,
+            initial_capital=initial_capital,
+            score_exclude=score_exclude,
+        )
 
         row = {"i": idx}
         for k, v in zip(keys, combo, strict=True):
@@ -484,6 +516,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
         "dd_cap_percent": float(dd_cap),
         "top_k": int(top_k),
         "topk": topk_df.to_dict(orient="records"),
+        "score_exclude": list(((base_cfg.get("periods", {}) or {}).get("score_exclude") or []) or []),
     }
 
     _emit(args, payload=payload, text=text)
@@ -500,6 +533,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             "sweep_kind": kind,
             "n_candidates": len(combos),
             "grid": {k: grid[k] for k in keys},
+            "score_exclude": list(((best_cfg.get("periods", {}) or {}).get("score_exclude") or []) or []),
         }
         d = _write_decision_bundle(
             slug=args.decision_slug,

@@ -41,6 +41,9 @@ quantlab/
 ```bash
 # NOTE: quantlab.rnd outputs JSON by default (agent-friendly).
 # Use --format text for human-readable tables.
+#
+# Holdout: configs can specify periods.score_exclude (e.g. ["2026"]) to exclude
+# those periods from scoring/optimization while still printing them.
 
 # Single run from experiment config
 .venv/bin/python -m quantlab.rnd run \
