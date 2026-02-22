@@ -116,19 +116,8 @@ Gate is ON when config block present, OFF when missing.
 
 ## Configuration
 
-`quantlab/configs/trend_based/current.yaml`:
-```yaml
-symbol: XAUUSD
-trend: {fast: 30, slow: 75}
-htf_confirm: {rule: "15min"}
-ema_sep: {ema_fast: 40, ema_slow: 300, sep_k: 0.05}
-nochop: {ema: 20, lookback: 40, min_closes: 24}
-corr: {logic: "or", xag: {min_abs: 0.10}, eur: {min_abs: 0.10}}
-time_filter: {kind: "fomc"}
-churn: {min_on_bars: 3, cooldown_bars: 8}
-risk: {shock_exit_abs_ret: 0.006}
-costs: {fee_per_lot: 3.50, spread_per_lot: 3.50}  # IC Markets rough baseline
-```
+Canonical config (tracked):
+- `quantlab/configs/trend_based/current.yaml`
 
 ## Web UI
 
@@ -153,6 +142,24 @@ Browser-based backtest runner at http://localhost:8080
 
 - **API Key:** FRED_API_KEY for economic calendar
 - **Design:** Strategy classes with composable gates, single backtest engine
+
+### Regression & parity (mandatory when refactoring execution semantics)
+
+When touching anything that can alter signals/execution (gates, costs, time-filtering, return math, trade extraction), regress on **position + equity series**, not just headline metrics.
+
+Golden series regression (best_trend 2024–2025):
+
+```bash
+# run regression
+.venv/bin/python -m pytest -q tests/regression/test_best_trend_2024_2025_series.py
+
+# update golden (ONLY when the change is intentional)
+.venv/bin/python tests/regression/update_golden_best_trend_2024_2025.py
+```
+
+Notes:
+- Golden artifacts live under `tests/regression/golden/`.
+- We bias toward CLI/WebUI parity; the runner intentionally reuses WebUI loaders.
 
 ## Reports
 
