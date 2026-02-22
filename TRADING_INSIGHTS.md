@@ -26,6 +26,13 @@ What this is *not*:
 - Best trend doc: `reports/trend_based/BEST_TREND_STRATEGY.md`
 - Baselines: `reports/baselines/`
 
+### Baseline semantics (important)
+- **Buy & Hold** baseline is now **~1x notional / unlevered** at entry:
+  - `position=1.0`
+  - `leverage=1.0`
+  - per-period `lot_per_size` is set so notional at entry ≈ `initial_capital`
+- The previous Buy & Hold implementation was implicitly **levered** (fixed lots + `position=2.0`), which overstated baseline PnL/DD.
+
 ### Current best_trend headline metrics (XAUUSD)
 (from `best_trend.html`)
 - 2020-2022: PnL **36.95%**, MaxDD **-16.62%**, Sharpe **0.59**
