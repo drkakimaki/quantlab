@@ -54,16 +54,16 @@ def _render_existing_reports(strategies: dict) -> str:
             url = f"/report/{sid}"
             mt = _fmt_mtime(report_mtime(sid))
 
-            links = [f'<a href="{url}" target="_blank" rel="noopener">Open</a>']
+            links = [f'<a href="{url}" target="_blank" rel="noopener">Equity (P)</a>']
 
             # Trade breakdown report (if present)
             if report_exists(sid, kind="trades"):
                 url_t = f"/trades/{sid}"
-                links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades</a>')
+                links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades (P)</a>')
 
             if report_exists(sid, variant="yearly"):
                 url_y = f"/report/{sid}?mode=yearly"
-                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Open (Y)</a>')
+                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Equity (Y)</a>')
 
             if report_exists(sid, variant="yearly", kind="trades"):
                 url_ty = f"/trades/{sid}?mode=yearly"
