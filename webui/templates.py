@@ -27,10 +27,27 @@ def render_index() -> str:
     except Exception:
         costs = {}
 
+    # Holdout note (e.g. 2026 excluded from rnd scoring)
+    score_exclude = []
+    try:
+        periods = (cfg.get("periods", {}) or {}) if isinstance(cfg, dict) else {}
+        score_exclude = list(periods.get("score_exclude") or [])
+    except Exception:
+        score_exclude = []
+
+    holdout_note = ""
+    if score_exclude:
+        holdout_note = (
+            "Holdout / forward-walk: "
+            + ", ".join(str(x) for x in score_exclude)
+            + " (shown in reports, excluded from optimization/scoring)"
+        )
+
     return HTML_TEMPLATE.format(
         strategy_options=strategy_options,
         existing_reports=existing_reports,
         costs_json=json.dumps(costs),
+        holdout_note=holdout_note,
     )
 
 
@@ -270,13 +287,14 @@ HTML_TEMPLATE = """<!doctype html>
 
           <label for="breakdown">Time setting</label>
           <select name="breakdown" id="breakdown">
-            <option value="three_block">3 blocks (20–22 / 23–25 / 26)</option>
-            <option value="yearly">Yearly (2020+)</option>
+            <option value="three_block">3 blocks (20–22 / 23–25 / 26 holdout)</option>
+            <option value="yearly">Yearly (20–25 / 26 holdout)</option>
           </select>
 
           <!-- record_executions checkbox removed (trade report is always generated) -->
 
           <div class="note" id="costs-note"></div>
+          <div class="note" id="holdout-note">{holdout_note}</div>
 
           <button type="submit" id="run-btn">Run Backtest</button>
         </form>
