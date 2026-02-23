@@ -35,9 +35,9 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `rnd run` / canonical config)
-- 2020-2022: PnL **32.47%**, MaxDD **-17.39%**, Sharpe **0.55**
-- 2023-2025: PnL **346.86%**, MaxDD **-14.49%**, Sharpe **2.16**
-- 2026 (HOLDOUT): PnL **161.39%**, MaxDD **-9.57%**, Sharpe **6.40**
+- 2020-2022: PnL **29.98%**, MaxDD **-19.39%**, Sharpe **0.50**
+- 2023-2025: PnL **358.87%**, MaxDD **-14.32%**, Sharpe **2.20**
+- 2026 (HOLDOUT): PnL **154.90%**, MaxDD **-10.91%**, Sharpe **5.89**
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
@@ -53,7 +53,6 @@ Canonical pipeline knobs (pipeline elements only):
 
 | Pipeline gate | Key params | What it does |
 |---|---|---|
-| `htf_confirm` | `fast`, `slow` | HTF (15m) SMA confirm (forward-filled to 5m). |
 | `ema_sep` | `ema_fast`, `ema_slow`, `atr_n`, `sep_k` | HTF EMA separation filter (ATR-scaled). |
 | `nochop` | `ema`, `lookback`, `min_closes`, `entry_held` | HTF NoChop regime filter. |
 | `time_filter` | *(none in pipeline)* | Applies a force-flat allow-mask built by the runner (see `time_filter:` config in `current.yaml`). |
@@ -87,7 +86,7 @@ Canonical pipeline knobs (pipeline elements only):
 ## 3) Strategy-specific insights — best_trend (XAUUSD)
 
 ### What mattered (from sweeps)
-- Ablation (when controlling for sizing): **NoChop** and **Churn** are the dominant gates; HTF confirm also matters.
+- Ablation (when controlling for sizing): **NoChop** and **Churn** are the dominant gates; EMA separation also matters.
   - Source: `reports/trend_based/decisions/2026-02-14_ablation/`
 - Corr module: historically a big lever mainly because it combined **filtering + sizing**. We have now removed it and replaced the sizing role with an **EMA-strength sizing** gate to reduce parameters.
   - Source: `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/`

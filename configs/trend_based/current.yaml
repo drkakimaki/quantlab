@@ -38,10 +38,6 @@ time_filter:
     post_hours: 0.5
 
 pipeline:
-- gate: htf_confirm
-  params:
-    fast: 30
-    slow: 75
 - gate: ema_sep
   params:
     ema_fast: 40
