@@ -35,9 +35,9 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `rnd run` / canonical config)
-- 2020-2022: PnL **24.92%**, MaxDD **-18.93%**, Sharpe **0.40**
-- 2023-2025: PnL **380.13%**, MaxDD **-13.35%**, Sharpe **2.25**
-- 2026 (HOLDOUT): PnL **148.55%**, MaxDD **-10.66%**, Sharpe **5.72**
+- 2020-2022: PnL **45.40%**, MaxDD **-17.20%**, Sharpe **0.62**
+- 2023-2025: PnL **359.82%**, MaxDD **-12.85%**, Sharpe **2.18**
+- 2026 (HOLDOUT): PnL **130.96%**, MaxDD **-16.92%**, Sharpe **4.77**
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 

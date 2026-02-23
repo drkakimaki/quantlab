@@ -64,10 +64,10 @@ Holdout policy:
 Source of truth: `configs/trend_based/current.yaml` → `pipeline:`
 
 1. **ema_sep** — HTF EMA separation filter (ATR-scaled)
-   - params: `ema_fast=50`, `ema_slow=300`, `atr_n=20`, `sep_k=0.07`
+   - params: `ema_fast=50`, `ema_slow=300`, `atr_n=20`, `sep_k=0.065`
 
 2. **nochop** — HTF NoChop filter
-   - params: `ema=20`, `lookback=40`, `min_closes=22`, `entry_held=false`
+   - params: `ema=20`, `lookback=40`, `min_closes=20`, `entry_held=false`
    - Note: `exit_bad_bars` logic was removed.
 
 3. **time_filter** — force-flat allow-mask

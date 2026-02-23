@@ -40,12 +40,12 @@ pipeline:
     ema_fast: 50
     ema_slow: 300
     atr_n: 20
-    sep_k: 0.07
+    sep_k: 0.065
 - gate: nochop
   params:
     ema: 20
     lookback: 40
-    min_closes: 22
+    min_closes: 20
     entry_held: false
 - gate: time_filter
   params: {}
