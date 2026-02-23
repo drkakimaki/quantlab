@@ -1,6 +1,6 @@
 # TRADING_INSIGHTS.md
 
-**Last updated:** 2026-02-22 (Europe/Berlin)
+**Last updated:** 2026-02-23 (Europe/Berlin)
 
 A timeless **state + lessons** document for this repo.
 
@@ -45,7 +45,9 @@ What this is *not*:
 - Base: 5m OHLC close
 - HTF: 15m OHLC confirm
 - Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
-- Modules ON: EMA-sep, NoChop, **FOMC force-flat**, **EMA-strength sizing (size=2 only on strong separation)**, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, **Mid-duration loss limiter (13–48, -1%)**, **Time-stop (24 bars, -0.5%)**, ShockExit
+- Canonical best_trend is a **config-driven gate pipeline** (`current.yaml: pipeline:`).
+- Current canonical pipeline (names only):
+  - `htf_confirm → ema_sep → nochop → time_filter → ema_strength_sizing → seasonality_cap → churn → mid_loss_limiter → no_recovery_exit → shock_exit`
 - Corr stability gate: **OFF** (removed for simplicity; replaced by EMA-strength sizing)
 - Discrete sizing: 0.01 / 0.02 lots only
 
@@ -73,7 +75,7 @@ What this is *not*:
   - Source: `reports/trend_based/decisions/2026-02-14_ablation/`
 - Corr module: historically a big lever mainly because it combined **filtering + sizing**. We have now removed it and replaced the sizing role with an **EMA-strength sizing** gate to reduce parameters.
   - Source: `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/`
-- Post-entry controls: the biggest incremental improvements came from (a) a mid-duration loss limiter (13–48 bars, stop -1%) and (b) a time-stop (if not recovered above -0.5% by 24 bars).
+- Post-entry controls: the biggest incremental improvements came from (a) a mid-duration loss limiter (13–48 bars, stop -1%) and (b) a **no-recovery exit** (if not recovered above -0.5% by 24 bars).
   - Sources:
     - `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/`
     - `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/`
@@ -96,9 +98,6 @@ What this is *not*:
   - Implication: focus on **post-entry risk controls** (exits/kill-switches), not more entry gating.
   - Evidence: Most entries show profit at some point; drawdowns develop over multiple bars.
   - Source: `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
-- **ShockExit helps but isn't the whole story.** Many worst in-position days are not single-bar shocks.
-  - Implication: next likely lever is a **multi-bar loss limiter** (daily stop or rolling-loss exit).
-  - Source: `reports/trend_based/decisions/2026-02-15_loss_drawdown_deepdive/`
 
 ---
 
@@ -115,7 +114,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 - `reports/trend_based/decisions/2026-02-21_june_softcap_size1_v0/`
 - `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/` (corr removed; sizing via EMA strength)
 - `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/` (post-entry loss limiter)
-- `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/` (post-entry time-stop)
+- `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/` (post-entry no-recovery exit)
 - `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/` (econ calendar CPI/NFP disabled)
 
 ### Risk research
