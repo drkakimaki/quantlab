@@ -65,27 +65,8 @@ quantlab/
 
 ## Strategy Classes
 
-| Class | Purpose |
-|-------|---------|
-| `BuyAndHoldStrategy` | Buy at start, hold to end |
-| `MeanReversionStrategy` | Z-score mean reversion |
-| `TrendStrategy` | Simple MA crossover |
-| `TrendStrategyWithGates` | Trend + composable filters |
-
-```python
-from quantlab.strategies import TrendStrategyWithGates, BacktestConfig
-from quantlab.engine.trades import extract_trade_log
-
-strategy = TrendStrategyWithGates.from_config(config, allow_mask=fomc_mask)
-result = strategy.run_backtest(prices, context={
-    "bars_15m": bars_15m,
-    "prices_xag": xag_prices,
-    "prices_eur": eur_prices,
-})
-
-# Canonical trade log (one row per trade segment)
-trade_log = extract_trade_log(result.df)
-```
+- `TrendStrategyWithGates`: main strategy (SMA trend + configurable gate pipeline from YAML).
+- Baselines: `BuyAndHoldStrategy`, `TrendStrategy` (simple SMA), `MeanReversionStrategy`.
 
 ## Composable Gates
 
