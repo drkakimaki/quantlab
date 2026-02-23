@@ -93,16 +93,29 @@ trade_log = extract_trade_log(result.df)
 
 `base → HTF → EMASep → NoChop → (Corr optional) → TimeFilter → EMA-strength sizing → SeasonalitySizeCap → Churn → Mid-loss limiter → Time-stop → ShockExit`
 
+### Entry filters (regime / permission)
 | Gate | Purpose |
 |------|---------|
 | `HTFConfirmGate` | 15m SMA alignment |
 | `EMASeparationGate` | EMA separation > k×ATR |
 | `NoChopGate` | Avoid choppy markets |
 | `CorrelationGate` | XAG/EUR correlation stability (**currently disabled in canonical**) |
-| `TimeFilterGate` | FOMC force-flat windows |
+| `TimeFilterGate` | Force-flat during blocked windows (FOMC / econ_calendar) |
+
+### Sizing overlays (do not create entries)
+| Gate | Purpose |
+|------|---------|
 | `EMAStrengthSizingGate` | Size=2 on strong EMA separation (segment-held) |
 | `SeasonalitySizeCapGate` | Month-based size cap (e.g. June size<=1) |
+
+### Trade frequency control
+| Gate | Purpose |
+|------|---------|
 | `ChurnGate` | Entry debounce + re-entry cooldown |
+
+### Post-entry exits
+| Gate | Purpose |
+|------|---------|
 | `MidDurationLossLimiterGate` | Kill mid-duration losers (e.g. 13–48 bars under -1%) |
 | `NoRecoveryExitGate` | Kill trades that fail to recover by N bars |
 | `ShockExitGate` | Shock exits (+ optional cooldown) |
