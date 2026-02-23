@@ -47,19 +47,73 @@ def _now_slug() -> str:
 
 
 def _set_in(cfg: dict[str, Any], dotted_key: str, value: Any) -> None:
+    """Set a value in a nested dict/list structure using dotted path.
+
+    Supports both dict keys and list indices.
+
+    Examples
+    --------
+    _set_in(cfg, "a.b.c", 1)
+    _set_in(cfg, "pipeline.0.params.sep_k", 0.05)
+    """
+
     parts = dotted_key.split(".")
     cur: Any = cfg
-    for k in parts[:-1]:
-        if k not in cur or not isinstance(cur[k], dict):
-            cur[k] = {}
+
+    for i, k in enumerate(parts[:-1]):
+        nxt = parts[i + 1]
+        # List indexing
+        if isinstance(cur, list):
+            if not k.isdigit():
+                raise TypeError(f"Expected list index at {'.'.join(parts[:i+1])}, got key {k!r}")
+            idx = int(k)
+            while len(cur) <= idx:
+                cur.append({})
+            if cur[idx] is None:
+                cur[idx] = {}
+            cur = cur[idx]
+            continue
+
+        # Dict key
+        if not isinstance(cur, dict):
+            raise TypeError(f"Cannot descend into non-container at {'.'.join(parts[:i])}: {type(cur)}")
+
+        if k not in cur or not isinstance(cur[k], (dict, list)):
+            # Decide whether next container should be list or dict
+            cur[k] = [] if str(nxt).isdigit() else {}
+
         cur = cur[k]
-    cur[parts[-1]] = value
+
+    last = parts[-1]
+    if isinstance(cur, list):
+        if not last.isdigit():
+            raise TypeError(f"Expected list index at {dotted_key!r}, got {last!r}")
+        idx = int(last)
+        while len(cur) <= idx:
+            cur.append(None)
+        cur[idx] = value
+        return
+
+    if not isinstance(cur, dict):
+        raise TypeError(f"Cannot set value on non-dict at {dotted_key!r}: {type(cur)}")
+
+    cur[last] = value
 
 
 def _get_in(cfg: dict[str, Any], dotted_key: str) -> Any:
+    """Get a value from a nested dict/list structure using dotted path."""
     parts = dotted_key.split(".")
     cur: Any = cfg
     for k in parts:
+        if isinstance(cur, list):
+            if not str(k).isdigit():
+                return None
+            idx = int(k)
+            if idx < 0 or idx >= len(cur):
+                return None
+            cur = cur[idx]
+            continue
+
         if not isinstance(cur, dict) or k not in cur:
             return None
         cur = cur[k]

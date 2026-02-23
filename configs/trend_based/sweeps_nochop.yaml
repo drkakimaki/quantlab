@@ -1,0 +1,13 @@
+# Sweep NoChop regime filter params
+kind: grid
+mode: three_block
+base: configs/trend_based/current.yaml
+dd_cap_percent: 20
+initial_capital: 1000
+top_k: 20
+
+grid:
+  pipeline.1.params.ema: [15, 20, 25]
+  pipeline.1.params.lookback: [30, 40, 50]
+  pipeline.1.params.min_closes: [18, 24, 28]
+  pipeline.1.params.entry_held: [false, true]

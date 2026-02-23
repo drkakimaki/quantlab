@@ -14,6 +14,15 @@ def test_set_in_get_in_roundtrip() -> None:
     assert rnd._get_in(cfg, "a.x") is None
 
 
+def test_set_in_supports_list_indices() -> None:
+    cfg: dict = {}
+    rnd._set_in(cfg, "pipeline.0.gate", "ema_sep")
+    rnd._set_in(cfg, "pipeline.0.params.sep_k", 0.05)
+    assert rnd._get_in(cfg, "pipeline.0.gate") == "ema_sep"
+    assert rnd._get_in(cfg, "pipeline.0.params.sep_k") == 0.05
+    assert isinstance(cfg["pipeline"], list)
+
+
 def test_better_feasible_beats_infeasible() -> None:
     a = rnd.CandidateScore(ok=False, sum_pnl=999, worst_maxdd=-50, avg_sharpe=10, maxdd_violation=30)
     b = rnd.CandidateScore(ok=True, sum_pnl=-1, worst_maxdd=-1, avg_sharpe=-1, maxdd_violation=0)
