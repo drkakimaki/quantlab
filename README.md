@@ -15,7 +15,8 @@ quantlab/
 │   ├── base.py              # StrategyBase, BacktestResult, BacktestConfig
 │   ├── buy_and_hold.py
 │   ├── mean_reversion.py
-│   └── trend_following.py   # TrendStrategy, TrendStrategyWithGates, gates
+│   ├── trend_following.py   # TrendStrategy, TrendStrategyWithGates
+│   └── gates/               # Composable gate implementations
 ├── time_filter/             # Time-blocking infra (FOMC + econ calendar)
 ├── data/
 │   ├── dukascopy.py         # Tick download, 1s builder
@@ -90,7 +91,7 @@ trade_log = extract_trade_log(result.df)
 
 `TrendStrategyWithGates` applies (current order):
 
-`base → HTF → EMASep → NoChop → (Corr optional) → TimeFilter → EMA-strength sizing → SeasonalitySizeCap → Churn → Mid-loss limiter → Time-stop → Risk`
+`base → HTF → EMASep → NoChop → (Corr optional) → TimeFilter → EMA-strength sizing → SeasonalitySizeCap → Churn → Mid-loss limiter → Time-stop → ShockExit`
 
 | Gate | Purpose |
 |------|---------|
@@ -104,7 +105,7 @@ trade_log = extract_trade_log(result.df)
 | `ChurnGate` | Entry debounce + re-entry cooldown |
 | `MidDurationLossLimiterGate` | Kill mid-duration losers (e.g. 13–48 bars under -1%) |
 | `TimeStopGate` | Kill trades that fail to recover by N bars |
-| `RiskGate` | Shock exits (+ optional cooldown) |
+| `ShockExitGate` | Shock exits (+ optional cooldown) |
 
 Gate is ON when its config block is present, OFF when missing/null.
 
