@@ -113,9 +113,9 @@ def load_time_filter_mask(
 ) -> pd.Series | None:
     """Load allow mask for the configured time_filter kind.
 
-    Supports:
-    - kind=fomc (backward compatible)
-    - kind=econ_calendar (reads usd_important_events.csv and applies per-event rules)
+    Supported kinds:
+    - fomc
+    - econ_calendar
     """
     tf = cfg.get("time_filter", {}) or {}
     kind = (tf.get("kind") or "fomc").strip().lower()
@@ -125,16 +125,12 @@ def load_time_filter_mask(
         days_csv = fomc_cfg.get("days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv")
         return load_fomc_mask(index, start, end, workspace / str(days_csv), fomc_cfg)
 
-    if kind in {"econ_calendar", "econ", "calendar"}:
+    if kind == "econ_calendar":
         ec = tf.get("econ_calendar", {}) or {}
         csv_rel = ec.get("csv", "quantlab/data/econ_calendar/usd_important_events.csv")
         rules = ec.get("rules", {}) or {}
 
-        # Resolve paths relative to workspace (backward compatible with either
-        # "quantlab/data/..." or "data/..." style paths).
-        p1 = (workspace / str(csv_rel)).resolve()
-        p2 = (workspace / "quantlab" / str(csv_rel)).resolve()
-        csv_path = str(p1 if p1.exists() else p2)
+        csv_path = str((workspace / str(csv_rel)).resolve())
 
         return build_allow_mask_from_econ_calendar(
             index,
