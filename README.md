@@ -42,26 +42,25 @@ quantlab/
 .venv/bin/python quantlab/webui/backtest_ui.py --port 8080
 ```
 
+### Report generation (canonical HTML outputs)
+```bash
+.venv/bin/python -c "from quantlab.webui.runner import run_backtest; run_backtest('best_trend')"
+```
+
 ### CLI R&D loop (agent-friendly)
 ```bash
-# NOTE: quantlab.rnd outputs JSON by default (agent-friendly).
-# Use --format text for human-readable tables.
-#
-# Holdout: configs can specify periods.score_exclude (e.g. ["2026"]) to exclude
-# those periods from scoring/optimization while still printing them.
+# JSON by default; use --format text for humans.
 
-# Single run from experiment config
-.venv/bin/python -m quantlab.rnd run \
-  --format text \
-  --config quantlab/configs/trend_based/experiment.yaml \
-  --mode yearly \
-  --dd-cap 20
+# Configs
+# - canonical run:     quantlab/configs/trend_based/current.yaml
+# - experiments:       quantlab/configs/trend_based/experiment*.yaml
+# - sweeps (grids):    quantlab/configs/trend_based/sweeps*.yaml
+
+# Single scoring run
+.venv/bin/python -m quantlab.rnd run --config quantlab/configs/trend_based/current.yaml
 
 # Grid sweep (writes decision bundle if --decision-slug is set)
-.venv/bin/python -m quantlab.rnd sweep \
-  --format text \
-  --sweep quantlab/configs/trend_based/sweeps.yaml \
-  --decision-slug sweep_fast_slow
+.venv/bin/python -m quantlab.rnd sweep --sweep quantlab/configs/trend_based/sweeps.yaml --decision-slug sweep_fast_slow
 ```
 
 ## Strategy Classes
