@@ -8,6 +8,32 @@ from .types import SignalGate
 from .registry import register_gate
 
 
+def _segment_ids(on: pd.Series) -> pd.Series:
+    """Return a segment id series that increments on each on/off toggle."""
+    return on.ne(on.shift(1, fill_value=False)).cumsum()
+
+
+def _entry_mask(on: pd.Series) -> pd.Series:
+    """Entry bars for segments where on transitions False -> True."""
+    return on & (~on.shift(1, fill_value=False))
+
+
+def _entry_price(px: pd.Series, *, entry: pd.Series, seg: pd.Series) -> pd.Series:
+    """Entry price forward-filled within each segment (NaN outside segments)."""
+    return px.where(entry).groupby(seg).ffill()
+
+
+def _bars_since_entry(on: pd.Series, *, seg: pd.Series) -> pd.Series:
+    """0-based bars since entry within each segment (undefined outside segments)."""
+    return on.astype(int).groupby(seg).cumsum() - 1
+
+
+def _kill_remainder(p: pd.Series, *, trigger: pd.Series, seg: pd.Series) -> pd.Series:
+    """Force-flat the remainder of a segment once trigger becomes True."""
+    kill = trigger.groupby(seg).cummax()
+    return p.where(~kill, 0.0)
+
+
 @register_gate("mid_loss_limiter")
 class MidDurationLossLimiterGate:
     """Exit losers in the toxic mid-duration band.
@@ -61,14 +87,14 @@ class MidDurationLossLimiterGate:
         if not bool(on.any()):
             return p
 
-        entry = on & (~on.shift(1, fill_value=False))
-        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
+        entry = _entry_mask(on)
+        seg = _segment_ids(on)
 
         # entry price held constant over the segment
-        entry_px = px.where(entry).groupby(seg).ffill()
+        entry_px = _entry_price(px, entry=entry, seg=seg)
 
         # bars since entry within each segment
-        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        bars_since = _bars_since_entry(on, seg=seg)
 
         # unrealized return since entry (safe when entry_px is nan outside segments)
         uret = (px / entry_px) - 1.0
@@ -84,8 +110,7 @@ class MidDurationLossLimiterGate:
             return p
 
         # Kill remainder of segment once triggered
-        kill = trigger.groupby(seg).cummax()
-        return p.where(~kill, 0.0)
+        return _kill_remainder(p, trigger=trigger, seg=seg)
 
 
 @register_gate("no_recovery_exit")
@@ -127,10 +152,10 @@ class NoRecoveryExitGate:
         if not bool(on.any()):
             return p
 
-        entry = on & (~on.shift(1, fill_value=False))
-        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
-        entry_px = px.where(entry).groupby(seg).ffill()
-        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        entry = _entry_mask(on)
+        seg = _segment_ids(on)
+        entry_px = _entry_price(px, entry=entry, seg=seg)
+        bars_since = _bars_since_entry(on, seg=seg)
         uret = (px / entry_px) - 1.0
 
         uret_lag = uret.shift(1)
@@ -140,8 +165,7 @@ class NoRecoveryExitGate:
         if not bool(trigger.any()):
             return p
 
-        kill = trigger.groupby(seg).cummax()
-        return p.where(~kill, 0.0)
+        return _kill_remainder(p, trigger=trigger, seg=seg)
 
 
 @register_gate("profit_milestone")
@@ -186,10 +210,10 @@ class ProfitMilestoneGate:
         if not bool(on.any()):
             return p
 
-        entry = on & (~on.shift(1, fill_value=False))
-        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
-        entry_px = px.where(entry).groupby(seg).ffill()
-        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        entry = _entry_mask(on)
+        seg = _segment_ids(on)
+        entry_px = _entry_price(px, entry=entry, seg=seg)
+        bars_since = _bars_since_entry(on, seg=seg)
         uret = (px / entry_px) - 1.0
 
         run_max = uret.groupby(seg).cummax()
@@ -201,8 +225,7 @@ class ProfitMilestoneGate:
         if not bool(trigger.any()):
             return p
 
-        kill = trigger.groupby(seg).cummax()
-        return p.where(~kill, 0.0)
+        return _kill_remainder(p, trigger=trigger, seg=seg)
 
 
 @register_gate("rolling_max_exit")
@@ -250,10 +273,10 @@ class RollingMaxExitGate:
         if not bool(on.any()):
             return p
 
-        entry = on & (~on.shift(1, fill_value=False))
-        seg = on.ne(on.shift(1, fill_value=False)).cumsum()
-        entry_px = px.where(entry).groupby(seg).ffill()
-        bars_since = on.astype(int).groupby(seg).cumsum() - 1
+        entry = _entry_mask(on)
+        seg = _segment_ids(on)
+        entry_px = _entry_price(px, entry=entry, seg=seg)
+        bars_since = _bars_since_entry(on, seg=seg)
         uret = (px / entry_px) - 1.0
 
         # Rolling max within each segment
@@ -269,8 +292,7 @@ class RollingMaxExitGate:
         if not bool(trigger.any()):
             return p
 
-        kill = trigger.groupby(seg).cummax()
-        return p.where(~kill, 0.0)
+        return _kill_remainder(p, trigger=trigger, seg=seg)
 
 
 @register_gate("shock_exit")
