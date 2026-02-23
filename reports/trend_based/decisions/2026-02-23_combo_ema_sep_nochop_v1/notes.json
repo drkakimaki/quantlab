@@ -1,0 +1,34 @@
+{
+  "candidate_change": {
+    "ema_sep": {
+      "atr_n": 20,
+      "ema_fast": 50,
+      "ema_slow": 300,
+      "sep_k": 0.07
+    },
+    "nochop": {
+      "ema": 20,
+      "entry_held": false,
+      "lookback": 40,
+      "min_closes": 18
+    }
+  },
+  "generated_files": [
+    "canon.yaml",
+    "candidate.yaml",
+    "summary.csv",
+    "canon_periods.csv",
+    "candidate_periods.csv",
+    "canon_duration_train.csv",
+    "candidate_duration_train.csv",
+    "duration_delta_train_candidate_minus_canon.csv",
+    "canon_duration_holdout.csv",
+    "candidate_duration_holdout.csv",
+    "duration_delta_holdout_candidate_minus_canon.csv"
+  ],
+  "objective": "maximize sum(PnL%) on scored periods subject to worst MaxDD <=20",
+  "score_exclude": [
+    "2026"
+  ],
+  "slug": "combo_ema_sep_nochop_v1"
+}

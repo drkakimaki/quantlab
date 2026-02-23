@@ -1,0 +1,30 @@
+{
+  "base": "configs/trend_based/current.yaml",
+  "dd_cap_percent": 20.0,
+  "grid": {
+    "pipeline.6.params.stop_ret": [
+      -0.008,
+      -0.01,
+      -0.012
+    ],
+    "pipeline.7.params.bar_n": [
+      18,
+      24,
+      30
+    ],
+    "pipeline.7.params.min_ret": [
+      -0.0025,
+      -0.005,
+      -0.0075
+    ]
+  },
+  "kind": "sweep",
+  "mode": "three_block",
+  "n_candidates": 27,
+  "objective": "sum_pnl subject_to worst_maxdd_cap",
+  "score_exclude": [
+    "2026"
+  ],
+  "sweep_kind": "grid",
+  "sweep_path": "configs/trend_based/sweeps_exits.yaml"
+}
