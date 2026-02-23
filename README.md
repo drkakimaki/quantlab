@@ -104,7 +104,7 @@ trade_log = extract_trade_log(result.df)
 | `SeasonalitySizeCapGate` | Month-based size cap (e.g. June size<=1) |
 | `ChurnGate` | Entry debounce + re-entry cooldown |
 | `MidDurationLossLimiterGate` | Kill mid-duration losers (e.g. 13–48 bars under -1%) |
-| `TimeStopGate` | Kill trades that fail to recover by N bars |
+| `NoRecoveryExitGate` | Kill trades that fail to recover by N bars |
 | `ShockExitGate` | Shock exits (+ optional cooldown) |
 
 Gate is ON when its config block is present, OFF when missing/null.

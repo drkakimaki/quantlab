@@ -9,7 +9,7 @@ from .sizing import EMAStrengthSizingGate, SeasonalitySizeCapGate
 from .churn import ChurnGate
 from .exits import (
     MidDurationLossLimiterGate,
-    TimeStopGate,
+    NoRecoveryExitGate,
     ProfitMilestoneGate,
     RollingMaxExitGate,
     ShockExitGate,
@@ -30,7 +30,7 @@ __all__ = [
     "ChurnGate",
     # exits
     "MidDurationLossLimiterGate",
-    "TimeStopGate",
+    "NoRecoveryExitGate",
     "ProfitMilestoneGate",
     "RollingMaxExitGate",
     "ShockExitGate",

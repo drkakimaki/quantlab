@@ -36,7 +36,7 @@ from .gates import (
     SeasonalitySizeCapGate,
     ChurnGate,
     MidDurationLossLimiterGate,
-    TimeStopGate,
+    NoRecoveryExitGate,
     ProfitMilestoneGate,
     RollingMaxExitGate,
     ShockExitGate,
@@ -106,7 +106,7 @@ class TrendStrategyWithGates(StrategyBase):
         churn_gate: ChurnGate | None = None,
         mid_loss_gate_early: MidDurationLossLimiterGate | None = None,
         mid_loss_gate: MidDurationLossLimiterGate | None = None,
-        time_stop_gate: TimeStopGate | None = None,
+        time_stop_gate: NoRecoveryExitGate | None = None,
         profit_milestone_gate: ProfitMilestoneGate | None = None,
         rolling_max_exit_gate: RollingMaxExitGate | None = None,
         risk_gate: ShockExitGate | None = None,
@@ -355,7 +355,7 @@ class TrendStrategyWithGates(StrategyBase):
         time_stop_gate = None
         ts_cfg = config.get("time_stop", {}) or {}
         if ts_cfg:
-            time_stop_gate = TimeStopGate(
+            time_stop_gate = NoRecoveryExitGate(
                 bar_n=int(ts_cfg.get("bar_n", 24)),
                 min_ret=float(ts_cfg.get("min_ret", 0.0)),
             )
@@ -426,7 +426,7 @@ __all__ = [
     "SeasonalitySizeCapGate",
     "ChurnGate",
     "MidDurationLossLimiterGate",
-    "TimeStopGate",
+    "NoRecoveryExitGate",
     "ProfitMilestoneGate",
     "RollingMaxExitGate",
     "ShockExitGate",

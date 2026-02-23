@@ -86,8 +86,8 @@ class MidDurationLossLimiterGate:
         return p.where(~kill, 0.0)
 
 
-class TimeStopGate:
-    """Time-stop / no-recovery exit.
+class NoRecoveryExitGate:
+    """No-recovery exit.
 
     If a position has not achieved at least `min_ret` return since entry by a
     specified holding age, we force-flat the remainder of the segment.
@@ -109,7 +109,7 @@ class TimeStopGate:
 
     @property
     def name(self) -> str:
-        return f"TimeStop(n={self.bar_n},min_ret={self.min_ret:g})"
+        return f"NoRecovery(n={self.bar_n},min_ret={self.min_ret:g})"
 
     def __call__(
         self,

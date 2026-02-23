@@ -25,6 +25,7 @@ from .trend_following import (
     TimeFilterGate,
     SeasonalitySizeCapGate,
     ChurnGate,
+    NoRecoveryExitGate,
     ShockExitGate,
 )
 
@@ -48,5 +49,6 @@ __all__ = [
     "TimeFilterGate",
     "SeasonalitySizeCapGate",
     "ChurnGate",
+    "NoRecoveryExitGate",
     "ShockExitGate",
 ]
