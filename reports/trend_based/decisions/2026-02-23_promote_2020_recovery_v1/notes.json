@@ -1,0 +1,11 @@
+{
+  "date": "2026-02-23",
+  "policy": "Holdout (2026) is soft unless catastrophic; train DD cap 20%",
+  "promoted_choice": "Option 2: recover 2020-2022 by loosening NoChop to min_closes=20 and relaxing ema_sep sep_k to 0.065",
+  "reference_choice": "Previous canonical-like reference: sep_k=0.07, min_closes=22 (stable holdout)",
+  "score_exclude": [
+    "2026"
+  ],
+  "slug": "promote_2020_recovery_v1",
+  "source_sweep": "reports/trend_based/decisions/2026-02-23_sweep_2020_recovery_v1/"
+}
