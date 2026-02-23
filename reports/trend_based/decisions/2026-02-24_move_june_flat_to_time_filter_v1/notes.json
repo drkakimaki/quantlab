@@ -1,0 +1,9 @@
+{
+  "change": "Moved June flat into time_filter.months.block=[6] and removed seasonality_cap gate (June size cap).",
+  "date": "2026-02-24",
+  "expectation": "Equivalent to prior month_flat experiment but implemented as time_filter allow_mask overlay (force-flat semantics).",
+  "score_exclude": [
+    "2026"
+  ],
+  "slug": "move_june_flat_to_time_filter_v1"
+}

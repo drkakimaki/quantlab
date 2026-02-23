@@ -97,6 +97,40 @@ def build_allow_mask_from_sessions(
     return m.reindex(idx_local).astype(bool)
 
 
+def build_allow_mask_from_months(
+    index: pd.DatetimeIndex,
+    *,
+    block: list[int] | tuple[int, ...] | set[int] | None = None,
+) -> pd.Series:
+    """Build an allow-mask that blocks entire calendar months.
+
+    Parameters
+    ----------
+    block:
+      Months to block (1-12). Example: block=[6] blocks June entirely.
+
+    Semantics
+    ---------
+    - allow=True outside blocked months
+    - allow=False inside blocked months
+
+    Notes
+    -----
+    - Uses the timestamp index month in UTC (or whatever tz is already on the index).
+    - This is intended as a blunt seasonal *force-flat* filter.
+    """
+    idx = pd.DatetimeIndex(index)
+    if idx.tz is None:
+        idx = idx.tz_localize("UTC")
+
+    months = sorted({int(m) for m in (block or [])})
+    if not months:
+        return pd.Series(True, index=idx)
+
+    allow = ~pd.Index(idx.month).isin(months)
+    return pd.Series(allow, index=idx).astype(bool)
+
+
 def build_allow_mask_from_events(index: pd.DatetimeIndex, *, events: list[EventWindow]) -> pd.Series:
     """Allow-mask that blocks within any event's [ts-pre, ts+post] interval."""
     idx = pd.DatetimeIndex(index)

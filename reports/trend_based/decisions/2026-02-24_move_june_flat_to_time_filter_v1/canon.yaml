@@ -34,8 +34,6 @@ time_filter:
     utc_hhmm: '19:00'
     pre_hours: 2.0
     post_hours: 0.5
-  months:
-    block: [6]  # force-flat June entirely
 pipeline:
 - gate: ema_sep
   params:
@@ -59,7 +57,10 @@ pipeline:
     strong_k: 0.2
     size_base: 1.0
     size_strong: 2.0
-# (removed) seasonality_cap: June is now force-flat via time_filter.months.block
+- gate: seasonality_cap
+  params:
+    month_size_cap:
+      6: 1.0
 - gate: churn
   params:
     min_on_bars: 3

@@ -18,7 +18,12 @@ from ..strategies import (
     BacktestConfig,
 )
 from ..data.resample import load_dukascopy_ohlc
-from ..time_filter import EventWindow, build_allow_mask_from_events, build_allow_mask_from_econ_calendar
+from ..time_filter import (
+    EventWindow,
+    build_allow_mask_from_events,
+    build_allow_mask_from_econ_calendar,
+    build_allow_mask_from_months,
+)
 from .. import report_periods_equity_only
 from ..reporting.generate_trades_report import report_periods_trades_html
 from .periods import build_periods
@@ -123,7 +128,16 @@ def load_time_filter_mask(
     if kind == "fomc":
         fomc_cfg = tf.get("fomc", {}) or {}
         days_csv = fomc_cfg.get("days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv")
-        return load_fomc_mask(index, start, end, workspace / str(days_csv), fomc_cfg)
+        mask = load_fomc_mask(index, start, end, workspace / str(days_csv), fomc_cfg)
+
+        # Optional month blocking overlay (force-flat semantics).
+        months_cfg = tf.get("months", {}) or {}
+        block_months = months_cfg.get("block") or []
+        m_mask = build_allow_mask_from_months(index, block=block_months)
+
+        if mask is None:
+            return m_mask
+        return (pd.Series(mask, index=index).astype(bool) & pd.Series(m_mask, index=index).astype(bool)).astype(bool)
 
     if kind == "econ_calendar":
         ec = tf.get("econ_calendar", {}) or {}
@@ -132,13 +146,22 @@ def load_time_filter_mask(
 
         csv_path = str((workspace / str(csv_rel)).resolve())
 
-        return build_allow_mask_from_econ_calendar(
+        mask = build_allow_mask_from_econ_calendar(
             index,
             start=start,
             end=end,
             csv_path=csv_path,
             rules=rules,
         )
+
+        # Optional month blocking overlay.
+        months_cfg = tf.get("months", {}) or {}
+        block_months = months_cfg.get("block") or []
+        m_mask = build_allow_mask_from_months(index, block=block_months)
+
+        if mask is None:
+            return m_mask
+        return (pd.Series(mask, index=index).astype(bool) & pd.Series(m_mask, index=index).astype(bool)).astype(bool)
 
     # Unknown kind -> no mask
     return None

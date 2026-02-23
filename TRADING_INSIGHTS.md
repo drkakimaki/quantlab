@@ -57,7 +57,7 @@ Canonical pipeline knobs (pipeline elements only):
 | `nochop` | `ema`, `lookback`, `min_closes`, `entry_held` | HTF NoChop regime filter. |
 | `time_filter` | *(none in pipeline)* | Applies a force-flat allow-mask built by the runner (see `time_filter:` config in `current.yaml`). |
 | `ema_strength_sizing` | `strong_k` | Segment-held size-up on strong EMA separation. |
-| `seasonality_cap` | `month_size_cap` | Month-based size caps (e.g. June size<=1). |
+| `seasonality_cap` | `month_size_cap` | Month-based size caps (deprecated for June; canonical now force-flats June via time_filter). |
 | `churn` | `min_on_bars`, `cooldown_bars` | Entry debounce + re-entry cooldown. |
 | `mid_loss_limiter` | `min_bars`, `max_bars`, `stop_ret` | Kill mid-duration losers (targets 13–48 bar toxic zone). |
 | `no_recovery_exit` | `bar_n`, `min_ret` | Exit if trade hasn’t recovered by N bars (no-recovery). |
@@ -104,6 +104,7 @@ Canonical pipeline knobs (pipeline elements only):
 
 ### Behavioral fingerprints (trade breakdown)
 - **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
+  - Canonical mitigation: **force-flat June** via `time_filter.months.block: [6]` (not just sizing).
 - **Duration-driven edge:**
   - Very long holds pay: **97+ bars** are strongly positive.
   - The toxic zone is **13–48 bars** (strongly negative).

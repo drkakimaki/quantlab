@@ -19,6 +19,7 @@ from .core import (
     build_allow_mask_from_events,
     build_allow_mask_from_sessions,
     build_allow_mask_from_econ_calendar,
+    build_allow_mask_from_months,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "build_allow_mask_from_events",
     "build_allow_mask_from_sessions",
     "build_allow_mask_from_econ_calendar",
+    "build_allow_mask_from_months",
 ]
