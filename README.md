@@ -6,7 +6,6 @@ Modular backtesting with Strategy classes, composable gates, and a unified engin
 
 ```
 quantlab/
-├── check.sh                 # Unit + regression checks (one command)
 ├── engine/                  # Backtest engine + metrics
 │   ├── backtest.py
 │   ├── metrics.py
@@ -29,9 +28,10 @@ quantlab/
 │       └── (sweeps/experiments)
 ├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
+├── reports/                 # Output reports + decision bundles
 ├── tests/                   # Unit tests + regression (golden series)
 ├── rnd.py                   # Low-token CLI runner (agent-friendly)
-└── reports/                 # Output reports + decision bundles
+└── check.sh                 # Unit + regression checks (one command)
 ```
 
 ## Quick Start
