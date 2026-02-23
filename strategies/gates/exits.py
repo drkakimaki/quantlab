@@ -331,6 +331,3 @@ class ShockExitGate:
 
         return pos
 
-
-# Backward-compatible alias (old name)
-RiskGate = ShockExitGate

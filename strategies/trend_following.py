@@ -40,7 +40,6 @@ from .gates import (
     ProfitMilestoneGate,
     RollingMaxExitGate,
     ShockExitGate,
-    RiskGate,
 )
 
 # ---------------------------------------------------------------------------
@@ -431,5 +430,4 @@ __all__ = [
     "ProfitMilestoneGate",
     "RollingMaxExitGate",
     "ShockExitGate",
-    "RiskGate",
 ]
