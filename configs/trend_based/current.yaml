@@ -1,115 +1,80 @@
-# Canonical configuration for the trend_based strategy ("best_trend")
-#
-# Convention:
-# - This file is the single source of truth for the canonical configuration.
-# - scripts/report_trend_variants.py should load this by default.
-# - CLI flags may override values for experimentation.
-#
-# Module convention:
-# - A module is ON if its config block is present (non-null)
-# - A module is OFF if the block is null or missing
-
 symbol: XAUUSD
 corr_symbol: XAGUSD
 corr2_symbol: EURUSD
-
 roots:
   root_5m_ohlc: quantlab/data/dukascopy_5m_ohlc
   root_15m_ohlc: quantlab/data/dukascopy_15m_ohlc
-
 periods:
-  mode: three_block   # three_block | yearly
-  # Holdout periods: shown in reports/WebUI, excluded from rnd scoring (sweeps/ablations/experiments)
-  score_exclude: ["2026"]
-
+  mode: three_block
+  score_exclude:
+  - '2026'
   three_block:
-    p1: { name: "2020-2022", start: "2020-01-01", end: "2022-12-31" }
-    p2: { name: "2023-2025", start: "2023-01-01", end: "2025-12-31" }
-    p3: { name: "2026", start: "2026-01-01", end: "today" }
-
+    p1:
+      name: 2020-2022
+      start: '2020-01-01'
+      end: '2022-12-31'
+    p2:
+      name: 2023-2025
+      start: '2023-01-01'
+      end: '2025-12-31'
+    p3:
+      name: '2026'
+      start: '2026-01-01'
+      end: today
 costs:
-  # Absolute per-lot costs (per side)
-  # IC Markets (XAUUSD) rough mapping:
-  # - avg spread ~ $0.07/oz  => ~$7/lot roundtrip (100 oz/lot)
-  # - commission ~ $7/lot roundtrip
-  # Engine charges costs per side: abs(d_lots) * (fee_per_lot + spread_per_lot)
-  # So we set per-side values so RT ≈ 2*(fee+spread) = $14/lot.
-  fee_per_lot: 3.50
-  spread_per_lot: 3.50
-
-# Core trend signal
+  fee_per_lot: 3.5
+  spread_per_lot: 3.5
 trend:
   fast: 30
   slow: 75
-
-# --- Modules (canonical defaults reflect current promoted best) ---
-
-# Higher timeframe confirmation (gate base signal by HTF SMA fast/slow)
-htf_confirm:
-  rule: 15min
-
-ema_sep:
-  ema_fast: 40
-  ema_slow: 300
-  atr_n: 20
-  sep_k: 0.05
-
-# New: size up to 2.0 when EMA separation is *strong* (relative to ATR).
-# Uses HTF (15m) EMAs/ATR, decided at entry and held for the segment.
-ema_strength_sizing:
-  strong_k: 0.20
-
-nochop:
-  ema: 20
-  lookback: 40
-  min_closes: 24
-
-  # Optional/experimental semantics
-  entry_held: false
-  exit_bad_bars: 0
-
-# corr gate disabled (we're replacing its sizing role elsewhere)
-corr: null
-
-# sizing tiers kept for later use by a dedicated sizing gate (not corr)
-sizing:
-  confirm_size_one: 1.0
-  confirm_size_both: 2.0
-
-# Strategy-agnostic time filter
-# (currently used for FOMC; mode is implemented in quantlab.time_filter)
-time_filter:
-  # NOTE: econ_calendar (CPI/NFP/etc) support exists but is currently disabled.
-  # Canonical time filter is FOMC force-flat.
-  kind: fomc
-  fomc:
-    days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
-    utc_hhmm: "19:00"
-    pre_hours: 2.0
-    post_hours: 0.5
-
-churn:
-  min_on_bars: 3
-  cooldown_bars: 8
-
-# Mid-duration loss limiter (targets the 13–48 bar toxic zone)
-mid_loss_limiter:
-  min_bars: 13
-  max_bars: 48
-  stop_ret: -0.010
-
-# Time-stop: if not recovered above -0.5% by 24 bars, kill the segment
-time_stop:
-  bar_n: 24
-  min_ret: -0.005
-
-seasonality:
-  # Soft June seasonality: cap size to 1.0 (disable size=2 tier) during June.
-  month_size_cap:
-    6: 1.0
-
-risk:
-  shock_exit_abs_ret: 0.006
-  shock_exit_sigma_k: 0.0
-  shock_exit_sigma_window: 96
-  shock_cooldown_bars: 0
+pipeline:
+- gate: htf_confirm
+  params:
+    fast: 30
+    slow: 75
+- gate: ema_sep
+  params:
+    ema_fast: 40
+    ema_slow: 300
+    atr_n: 20
+    sep_k: 0.05
+- gate: nochop
+  params:
+    ema: 20
+    lookback: 40
+    min_closes: 24
+    entry_held: false
+    exit_bad_bars: 0
+- gate: time_filter
+  params: {}
+- gate: ema_strength_sizing
+  params:
+    ema_fast: 40
+    ema_slow: 300
+    atr_n: 20
+    strong_k: 0.2
+    size_base: 1.0
+    size_strong: 2.0
+- gate: seasonality_cap
+  params:
+    month_size_cap:
+      6: 1.0
+- gate: churn
+  params:
+    min_on_bars: 3
+    cooldown_bars: 8
+- gate: mid_loss_limiter
+  params:
+    min_bars: 13
+    max_bars: 48
+    stop_ret: -0.01
+- gate: no_recovery_exit
+  params:
+    bar_n: 24
+    min_ret: -0.005
+- gate: shock_exit
+  params:
+    shock_exit_abs_ret: 0.006
+    shock_exit_sigma_k: 0.0
+    shock_exit_sigma_window: 96
+    shock_cooldown_bars: 0
