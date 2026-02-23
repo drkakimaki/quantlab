@@ -120,9 +120,9 @@ trade_log = extract_trade_log(result.df)
 | `NoRecoveryExitGate` | Kill trades that fail to recover by N bars |
 | `ShockExitGate` | Shock exits (+ optional cooldown) |
 
-Gate is ON when its config block is present, OFF when missing/null.
+Gate is ON when it appears in the `pipeline:` list (order = list order).
 
-Note: the `time_filter` supports an `econ_calendar` kind (CPI/NFP/etc) via `data/econ_calendar/usd_important_events.csv`, but the canonical config currently uses `kind: fomc`.
+Note: `time_filter.kind` supports `fomc` and `econ_calendar` (exact values).
 
 ## Data Management
 
@@ -150,6 +150,11 @@ Note: the `time_filter` supports an `econ_calendar` kind (CPI/NFP/etc) via `data
 
 Canonical config (tracked):
 - `quantlab/configs/trend_based/current.yaml`
+
+Gate pipeline config:
+- `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
+- Gate is ON if it appears in `pipeline:`.
+- Gate order is the list order.
 
 ## Web UI
 
