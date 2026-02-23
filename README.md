@@ -76,13 +76,6 @@ Meta-order (recommended):
 
 `base signal → entry filters → time filter → sizing overlays → trade frequency control → post-entry exits`
 
-Gates are configured via `pipeline:` in the YAML config:
-- Gate is ON if it appears in `pipeline:`.
-- Gate order is the list order.
-
-Time filter kinds:
-- `time_filter.kind: fomc | econ_calendar`
-
 ## Data Management
 
 ```bash
@@ -114,6 +107,28 @@ Gate pipeline config:
 - `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
 - Gate is ON if it appears in `pipeline:`.
 - Gate order is the list order.
+
+Registering new gates:
+- Add a new gate class under `quantlab/strategies/gates/` and register it:
+
+```python
+from quantlab.strategies.gates.registry import register_gate
+
+@register_gate("my_gate")
+class MyGate:
+    def __init__(self, **params): ...
+    @property
+    def name(self) -> str: ...
+    def __call__(self, positions, prices, context=None): ...
+```
+
+- Then reference it from YAML:
+
+```yaml
+pipeline:
+  - gate: my_gate
+    params: {}
+```
 
 ## Development
 
