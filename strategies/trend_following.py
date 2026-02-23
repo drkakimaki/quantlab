@@ -30,7 +30,6 @@ from .gates import (
     HTFConfirmGate,
     EMASeparationGate,
     NoChopGate,
-    NoChopExitBadBarsGate,
     CorrelationGate,
     TimeFilterGate,
     EMAStrengthSizingGate,
@@ -147,7 +146,7 @@ class TrendStrategyWithGates(StrategyBase):
         # Heuristic mapping by class name to avoid importing gate classes here.
         for g in gates:
             n = g.__class__.__name__
-            if n in {"HTFConfirmGate", "EMASeparationGate", "NoChopGate", "NoChopExitBadBarsGate", "EMAStrengthSizingGate"}:
+            if n in {"HTFConfirmGate", "EMASeparationGate", "NoChopGate", "EMAStrengthSizingGate"}:
                 reqs["bars_15m"] = "15-minute OHLC"
             if n in {"CorrelationGate"}:
                 reqs["prices_xag"] = "XAGUSD prices"
@@ -188,7 +187,10 @@ class TrendStrategyWithGates(StrategyBase):
             nc = cfg.get("nochop") or {}
             if nc:
                 # Entry gate
-                specs.append({"gate": "nochop", "params": dict(nc)})
+                params = dict(nc)
+                # Removed: exit_bad_bars semantics (was a separate post gate).
+                params.pop("exit_bad_bars", None)
+                specs.append({"gate": "nochop", "params": params})
 
             if cfg.get("corr"):
                 corr_cfg = dict(cfg.get("corr") or {})
@@ -212,16 +214,6 @@ class TrendStrategyWithGates(StrategyBase):
 
             if cfg.get("time_filter") or allow_mask is not None:
                 specs.append({"gate": "time_filter", "params": {}})
-
-            # NoChop exit_bad_bars as a separate post gate (canonical placement: after time_filter)
-            if nc and int(nc.get("exit_bad_bars", 0) or 0) > 0:
-                params = {
-                    "ema": nc.get("ema", 20),
-                    "lookback": nc.get("lookback", 40),
-                    "min_closes": nc.get("min_closes", 24),
-                    "exit_bad_bars": nc.get("exit_bad_bars", 0),
-                }
-                specs.append({"gate": "nochop_exit_bad_bars", "params": params})
 
             es_cfg = cfg.get("ema_strength_sizing", {}) or {}
             if es_cfg:
@@ -304,7 +296,6 @@ __all__ = [
     "HTFConfirmGate",
     "EMASeparationGate",
     "NoChopGate",
-    "NoChopExitBadBarsGate",
     "CorrelationGate",
     "TimeFilterGate",
     "EMAStrengthSizingGate",

@@ -44,7 +44,6 @@ pipeline:
     lookback: 40
     min_closes: 24
     entry_held: false
-    exit_bad_bars: 0
 - gate: time_filter
   params: {}
 - gate: ema_strength_sizing

@@ -118,9 +118,9 @@ class EMASeparationGate:
 @register_gate("nochop")
 class NoChopGate:
     """No-chop gate using HTF bars.
-    
+
     Counts closes above EMA in lookback period.
-    Supports entry_held mode and exit_bad_bars.
+    Supports entry_held mode.
     """
 
     def __init__(
@@ -129,13 +129,11 @@ class NoChopGate:
         lookback: int = 40,
         min_closes: int = 24,
         entry_held: bool = False,
-        exit_bad_bars: int = 0,
     ):
         self.ema = ema
         self.lookback = lookback
         self.min_closes = min_closes
         self.entry_held = entry_held
-        self.exit_bad_bars = exit_bad_bars
 
     @property
     def name(self) -> str:
