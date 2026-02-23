@@ -1,0 +1,41 @@
+{
+  "base": "configs/trend_based/current.yaml",
+  "dd_cap_percent": 20.0,
+  "grid": {
+    "pipeline.0.params.atr_n": [
+      20
+    ],
+    "pipeline.0.params.ema_fast": [
+      40,
+      50
+    ],
+    "pipeline.0.params.ema_slow": [
+      300
+    ],
+    "pipeline.0.params.sep_k": [
+      0.05,
+      0.055,
+      0.06,
+      0.065,
+      0.07
+    ],
+    "pipeline.1.params.entry_held": [
+      false,
+      true
+    ],
+    "pipeline.1.params.min_closes": [
+      20,
+      22,
+      24
+    ]
+  },
+  "kind": "sweep",
+  "mode": "three_block",
+  "n_candidates": 60,
+  "objective": "sum_pnl subject_to worst_maxdd_cap",
+  "score_exclude": [
+    "2026"
+  ],
+  "sweep_kind": "grid",
+  "sweep_path": "configs/trend_based/sweeps_2020_recovery_v1.yaml"
+}
