@@ -43,11 +43,15 @@ What this is *not*:
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close
-- HTF: 15m OHLC confirm
-- Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
+- Base trend signal: SMA 30/75 on 5m close (long-only)
 - Canonical best_trend is a **config-driven gate pipeline** (`current.yaml: pipeline:`).
-- Current canonical pipeline (names only):
-  - `htf_confirm → ema_sep → nochop → time_filter → ema_strength_sizing → seasonality_cap → churn → mid_loss_limiter → no_recovery_exit → shock_exit`
+
+High-level order (NLP summary):
+- Base signal → entry filters (regime) → time filter (force-flat) → sizing overlays → trade frequency control → post-entry exits
+
+Current canonical pipeline (names only):
+- `htf_confirm → ema_sep → nochop → time_filter → ema_strength_sizing → seasonality_cap → churn → mid_loss_limiter → no_recovery_exit → shock_exit`
+
 - Corr stability gate: **OFF** (removed for simplicity; replaced by EMA-strength sizing)
 - Discrete sizing: 0.01 / 0.02 lots only
 
