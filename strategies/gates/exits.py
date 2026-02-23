@@ -268,8 +268,8 @@ class RollingMaxExitGate:
         return p.where(~kill, 0.0)
 
 
-class RiskGate:
-    """Risk management gate.
+class ShockExitGate:
+    """Shock-exit risk gate.
 
     Implements shock exit (abs return or sigma-based) and optional cooldown.
 
@@ -292,7 +292,7 @@ class RiskGate:
 
     @property
     def name(self) -> str:
-        return f"Risk(shock={self.shock_exit_abs_ret})"
+        return f"ShockExit(abs={self.shock_exit_abs_ret})"
 
     def __call__(
         self,
@@ -330,3 +330,7 @@ class RiskGate:
                     pos = pos.where(~cool_mask, 0.0)
 
         return pos
+
+
+# Backward-compatible alias (old name)
+RiskGate = ShockExitGate

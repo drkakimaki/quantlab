@@ -39,6 +39,7 @@ from .gates import (
     TimeStopGate,
     ProfitMilestoneGate,
     RollingMaxExitGate,
+    ShockExitGate,
     RiskGate,
 )
 
@@ -109,7 +110,7 @@ class TrendStrategyWithGates(StrategyBase):
         time_stop_gate: TimeStopGate | None = None,
         profit_milestone_gate: ProfitMilestoneGate | None = None,
         rolling_max_exit_gate: RollingMaxExitGate | None = None,
-        risk_gate: RiskGate | None = None,
+        risk_gate: ShockExitGate | None = None,
     ):
         self.fast = fast
         self.slow = slow
@@ -383,7 +384,7 @@ class TrendStrategyWithGates(StrategyBase):
         risk_gate = None
         risk_cfg = config.get("risk", {})
         if risk_cfg:
-            risk_gate = RiskGate(
+            risk_gate = ShockExitGate(
                 shock_exit_abs_ret=risk_cfg.get("shock_exit_abs_ret", 0.0),
                 shock_exit_sigma_k=risk_cfg.get("shock_exit_sigma_k", 0.0),
                 shock_exit_sigma_window=risk_cfg.get("shock_exit_sigma_window", 96),
@@ -429,5 +430,6 @@ __all__ = [
     "TimeStopGate",
     "ProfitMilestoneGate",
     "RollingMaxExitGate",
+    "ShockExitGate",
     "RiskGate",
 ]

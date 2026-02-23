@@ -12,6 +12,7 @@ from .exits import (
     TimeStopGate,
     ProfitMilestoneGate,
     RollingMaxExitGate,
+    ShockExitGate,
     RiskGate,
 )
 
@@ -33,5 +34,6 @@ __all__ = [
     "TimeStopGate",
     "ProfitMilestoneGate",
     "RollingMaxExitGate",
-    "RiskGate",
+    "ShockExitGate",
+    "RiskGate",  # backward compat alias
 ]
