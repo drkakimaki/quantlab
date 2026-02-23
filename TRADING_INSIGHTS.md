@@ -88,6 +88,9 @@ Canonical pipeline knobs (pipeline elements only):
 ### What mattered (from sweeps)
 - Ablation (when controlling for sizing): **NoChop** and **Churn** are the dominant gates; EMA separation also matters.
   - Source: `reports/trend_based/decisions/2026-02-14_ablation/`
+- HTF confirm (`htf_confirm`) was removed from canonical as a redundancy reduction step.
+  - Evidence: `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/`
+  - Takeaway: Removing `htf_confirm` slightly improved 2023–2025 but worsened 2020–2022 and increased worst MaxDD on train; overall it looked close enough to drop for simplicity.
 - Corr module: historically a big lever mainly because it combined **filtering + sizing**. We have now removed it and replaced the sizing role with an **EMA-strength sizing** gate to reduce parameters.
   - Source: `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/`
 - Post-entry controls: the biggest incremental improvements came from (a) a mid-duration loss limiter (13–48 bars, stop -1%) and (b) a **no-recovery exit** (if not recovered above -0.5% by 24 bars).
@@ -122,6 +125,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 
 ### Promotion / hyperparam work
 - `reports/trend_based/decisions/2026-02-14_filters_hyperparam_search/`
+- `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/` (promotion: removed redundant HTF confirm)
 - `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/` (historical; corr gate now OFF)
 - `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - `reports/trend_based/decisions/2026-02-14_shock_exits/`
