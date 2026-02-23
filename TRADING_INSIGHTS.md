@@ -49,25 +49,20 @@ What this is *not*:
 High-level order (NLP summary):
 - Base signal → entry filters (regime) → time filter (force-flat) → sizing overlays → trade frequency control → post-entry exits
 
-Canonical knobs (what the pipeline/config actually controls):
+Canonical pipeline knobs (pipeline elements only):
 
-| Param | Description |
-|---|---|
-| `trend.fast`, `trend.slow` | Base 5m SMA crossover parameters (long-only). |
-| `costs.fee_per_lot`, `costs.spread_per_lot` | Absolute per-lot costs per side used by the engine. |
-| `time_filter.kind` | Time filter mask source (`fomc` or `econ_calendar`). |
-| `time_filter.fomc.days_csv` | CSV of FOMC decision dates (date-only). |
-| `time_filter.fomc.utc_hhmm` | Decision time used for the window (UTC). |
-| `time_filter.fomc.pre_hours`, `time_filter.fomc.post_hours` | Force-flat window size around the event. |
-| `pipeline[htf_confirm].fast`, `.slow` | HTF (15m) SMA confirm params (forward-filled to 5m). |
-| `pipeline[ema_sep].ema_fast`, `.ema_slow`, `.atr_n`, `.sep_k` | HTF EMA separation filter (ATR-scaled). |
-| `pipeline[nochop].ema`, `.lookback`, `.min_closes`, `.entry_held` | HTF NoChop regime filter. |
-| `pipeline[ema_strength_sizing].strong_k` | Size up when EMA separation is strong (segment-held sizing). |
-| `pipeline[seasonality_cap].month_size_cap` | Month-based size caps (e.g. June size<=1). |
-| `pipeline[churn].min_on_bars`, `.cooldown_bars` | Entry debounce + re-entry cooldown. |
-| `pipeline[mid_loss_limiter].min_bars`, `.max_bars`, `.stop_ret` | Mid-duration loss kill-switch (targets 13–48 bar toxic zone). |
-| `pipeline[no_recovery_exit].bar_n`, `.min_ret` | Exit if trade hasn’t recovered by N bars (no-recovery). |
-| `pipeline[shock_exit].shock_exit_abs_ret`, `.shock_cooldown_bars` | Shock-exit kill-switch (+ optional cooldown). |
+| Pipeline gate | Key params | What it does |
+|---|---|---|
+| `htf_confirm` | `fast`, `slow` | HTF (15m) SMA confirm (forward-filled to 5m). |
+| `ema_sep` | `ema_fast`, `ema_slow`, `atr_n`, `sep_k` | HTF EMA separation filter (ATR-scaled). |
+| `nochop` | `ema`, `lookback`, `min_closes`, `entry_held` | HTF NoChop regime filter. |
+| `time_filter` | *(none in pipeline)* | Applies a force-flat allow-mask built by the runner (see `time_filter:` config in `current.yaml`). |
+| `ema_strength_sizing` | `strong_k` | Segment-held size-up on strong EMA separation. |
+| `seasonality_cap` | `month_size_cap` | Month-based size caps (e.g. June size<=1). |
+| `churn` | `min_on_bars`, `cooldown_bars` | Entry debounce + re-entry cooldown. |
+| `mid_loss_limiter` | `min_bars`, `max_bars`, `stop_ret` | Kill mid-duration losers (targets 13–48 bar toxic zone). |
+| `no_recovery_exit` | `bar_n`, `min_ret` | Exit if trade hasn’t recovered by N bars (no-recovery). |
+| `shock_exit` | `shock_exit_abs_ret`, `shock_cooldown_bars` | Shock-exit kill-switch (+ optional cooldown). |
 
 - Corr stability gate: **OFF** in canonical (replaced by EMA-strength sizing).
 - Discrete sizing: 0.01 / 0.02 lots only.
