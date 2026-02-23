@@ -6,9 +6,9 @@ set -euo pipefail
 # - runs the golden series regression test
 #
 # Usage:
-#   ./scripts/check.sh
-#   ./scripts/check.sh --unit-only
-#   ./scripts/check.sh --regression-only
+#   ./check.sh
+#   ./check.sh --unit-only
+#   ./check.sh --regression-only
 
 MODE="all"
 if [[ "${1-}" == "--unit-only" ]]; then
@@ -20,7 +20,7 @@ elif [[ -n "${1-}" ]]; then
   exit 2
 fi
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 # Prefer the workspace venv (used by docs/TOOLS.md), then repo-local venv.
@@ -45,7 +45,7 @@ banner "Python"
 banner "Import smoke test"
 # Repo is used as a source checkout (not necessarily installed as a package).
 # Keep this consistent with README (PYTHONPATH=.)
-PYTHONPATH="${ROOT}/.." "$PY" -c "import quantlab; import quantlab.engine.backtest; import quantlab.strategies.trend_following; print('OK')"
+PYTHONPATH="$ROOT" "$PY" -c "import quantlab; import quantlab.engine.backtest; import quantlab.strategies.trend_following; print('OK')"
 
 if [[ "$MODE" == "all" || "$MODE" == "unit" ]]; then
   banner "Unit tests (fast)"

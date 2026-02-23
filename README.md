@@ -1,31 +1,34 @@
 # Quantlab - Trading Strategy Backtesting
 
-Repo: https://github.com/drkakimaki/quantlab
-
-Modular backtesting with Strategy classes, composable gates, and unified engine.
+Modular backtesting with Strategy classes, composable gates, and a unified engine.
 
 ## File Structure
 
 ```
 quantlab/
+├── check.sh                 # Unit + regression checks (one command)
 ├── engine/                  # Backtest engine + metrics
 │   ├── backtest.py
 │   ├── metrics.py
 │   └── trades.py            # Canonical trade log
 ├── strategies/              # Strategy classes + gates
-│   ├── base.py              # StrategyBase, BacktestResult
+│   ├── base.py              # StrategyBase, BacktestResult, BacktestConfig
 │   ├── buy_and_hold.py
 │   ├── mean_reversion.py
 │   └── trend_following.py   # TrendStrategy, TrendStrategyWithGates, gates
-├── time_filter/             # FOMC/session blocking
+├── time_filter/             # Time-blocking infra (FOMC + econ calendar)
 ├── data/
 │   ├── dukascopy.py         # Tick download, 1s builder
 │   ├── resample.py          # 5m/15m mid + OHLC
 │   ├── download.py          # CLI: download + resample
 │   └── validate.py          # CLI: check integrity
-├── configs/trend_based/current.yaml
+├── configs/
+│   └── trend_based/
+│       ├── current.yaml     # Canonical config
+│       └── (sweeps/experiments)
 ├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
+├── tests/                   # Unit tests + regression (golden series)
 ├── rnd.py                   # Low-token CLI runner (agent-friendly)
 └── reports/                 # Output reports + decision bundles
 ```
