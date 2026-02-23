@@ -10,7 +10,6 @@ import numpy as np
 
 from ..engine.backtest import backtest_positions_account_margin
 
-
 @dataclass
 class BacktestResult:
     """Result of a backtest run."""
@@ -38,7 +37,6 @@ class BacktestResult:
             "trade_count": self.trade_count,
         }
 
-
 @dataclass
 class BacktestConfig:
     """Configuration for backtest execution.
@@ -65,17 +63,6 @@ class BacktestConfig:
     spread_per_lot: float = 0.0    # $ per lot spread cost (per side, since fills at mid)
 
     # (legacy bps costs removed)
-
-
-@dataclass
-class TimeFilterConfig:
-    """Configuration for time-based filtering.
-
-    Canonical semantics: **force_flat**.
-    """
-
-    allow_mask: pd.Series | None = None  # 1=allowed, 0=blocked (optional, for precomputed masks)
-
 
 @runtime_checkable
 class Strategy(Protocol):
@@ -139,7 +126,6 @@ class Strategy(Protocol):
         *,
         context: dict | None = None,
         config: BacktestConfig | None = None,
-        time_filter: TimeFilterConfig | pd.Series | None = None,
     ) -> BacktestResult:
         """Run a full backtest.
 
@@ -150,7 +136,6 @@ class Strategy(Protocol):
             prices: Main price series.
             context: Additional data for signal generation.
             config: Backtest engine configuration.
-            time_filter: Time filter config or precomputed mask (1=allowed, 0=blocked).
 
         Returns:
             BacktestResult with equity curve, trades, and metrics.
@@ -162,11 +147,10 @@ class StrategyBase:
     """Base class for strategies with default backtest implementation.
 
     Provides a default run_backtest() that:
-    1. Calls generate_positions()
-    2. Optionally applies time_filter
-    3. Runs backtest_positions_account_margin()
-    4. Computes metrics
-    5. Extracts trades
+    - Calls generate_positions()
+    - Runs backtest_positions_account_margin()
+    - Computes metrics
+    - Extracts trades
 
     Subclasses only need to implement:
     - name property
@@ -193,38 +177,6 @@ class StrategyBase:
         context: dict | None = None,
     ) -> pd.Series:
         raise NotImplementedError("Subclasses must implement 'generate_positions'")
-
-    def _apply_time_filter(
-        self,
-        positions: pd.Series,
-        time_filter: TimeFilterConfig | pd.Series | None,
-    ) -> pd.Series:
-        """Apply time filter to positions.
-
-        Args:
-            positions: Position sizes.
-            time_filter: Either a TimeFilterConfig or a precomputed mask.
-
-        Returns:
-            Filtered positions.
-        """
-        if time_filter is None:
-            return positions
-
-        # Handle precomputed mask (pd.Series)
-        if isinstance(time_filter, pd.Series):
-            mask = time_filter.reindex(positions.index).fillna(0)
-            return positions * mask
-
-        # Handle TimeFilterConfig (canonical: force_flat)
-        if isinstance(time_filter, TimeFilterConfig):
-            if time_filter.allow_mask is None:
-                return positions
-
-            mask = time_filter.allow_mask.reindex(positions.index).fillna(0)
-            return positions * mask
-
-        return positions
 
     def _extract_executions(
         self,
@@ -335,7 +287,6 @@ class StrategyBase:
         *,
         context: dict | None = None,
         config: BacktestConfig | None = None,
-        time_filter: TimeFilterConfig | pd.Series | None = None,
     ) -> BacktestResult:
         """Default backtest implementation using the unified engine."""
         if config is None:
@@ -345,10 +296,6 @@ class StrategyBase:
 
         # Generate positions
         positions = self.generate_positions(prices, context=context)
-
-        # Apply time filter if provided
-        positions = self._apply_time_filter(positions, time_filter)
-
         # Run backtest engine
         df = backtest_positions_account_margin(
             prices=prices,

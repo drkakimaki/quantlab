@@ -1,7 +1,7 @@
 """Trading strategies (signal/position generators and simple baselines).
 
 This module provides:
-1. Base classes: Strategy, StrategyBase, BacktestResult, BacktestConfig, TimeFilterConfig
+1. Base classes: Strategy, StrategyBase, BacktestResult, BacktestConfig
 2. Strategy classes: BuyAndHoldStrategy, MeanReversionStrategy, TrendStrategy, TrendStrategyWithGates
 3. Composable gates: SignalGate, HTFConfirmGate, EMASeparationGate, NoChopGate, CorrelationGate
 """
@@ -11,7 +11,6 @@ from .base import (
     StrategyBase,
     BacktestResult,
     BacktestConfig,
-    TimeFilterConfig,
 )
 from .buy_and_hold import BuyAndHoldStrategy
 from .mean_reversion import MeanReversionStrategy
@@ -35,7 +34,6 @@ __all__ = [
     "StrategyBase",
     "BacktestResult",
     "BacktestConfig",
-    "TimeFilterConfig",
     # Strategy classes
     "BuyAndHoldStrategy",
     "MeanReversionStrategy",
