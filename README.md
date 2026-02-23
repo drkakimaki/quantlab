@@ -70,40 +70,18 @@ quantlab/
 
 ## Composable Gates
 
-`TrendStrategyWithGates` applies (current order):
+`TrendStrategyWithGates` is a gate pipeline applied on top of a base trend signal.
 
-`base → HTF → EMASep → NoChop → (Corr optional) → TimeFilter → EMA-strength sizing → SeasonalitySizeCap → Churn → Mid-loss limiter → Time-stop → ShockExit`
+Meta-order (recommended):
 
-### Entry filters (regime / permission)
-| Gate | Purpose |
-|------|---------|
-| `HTFConfirmGate` | 15m SMA alignment |
-| `EMASeparationGate` | EMA separation > k×ATR |
-| `NoChopGate` | Avoid choppy markets |
-| `CorrelationGate` | XAG/EUR correlation stability (**currently disabled in canonical**) |
-| `TimeFilterGate` | Force-flat during blocked windows (FOMC / econ_calendar) |
+`base signal → entry filters → time filter → sizing overlays → trade frequency control → post-entry exits`
 
-### Sizing overlays (do not create entries)
-| Gate | Purpose |
-|------|---------|
-| `EMAStrengthSizingGate` | Size=2 on strong EMA separation (segment-held) |
-| `SeasonalitySizeCapGate` | Month-based size cap (e.g. June size<=1) |
+Gates are configured via `pipeline:` in the YAML config:
+- Gate is ON if it appears in `pipeline:`.
+- Gate order is the list order.
 
-### Trade frequency control
-| Gate | Purpose |
-|------|---------|
-| `ChurnGate` | Entry debounce + re-entry cooldown |
-
-### Post-entry exits
-| Gate | Purpose |
-|------|---------|
-| `MidDurationLossLimiterGate` | Kill mid-duration losers (e.g. 13–48 bars under -1%) |
-| `NoRecoveryExitGate` | Kill trades that fail to recover by N bars |
-| `ShockExitGate` | Shock exits (+ optional cooldown) |
-
-Gate is ON when it appears in the `pipeline:` list (order = list order).
-
-Note: `time_filter.kind` supports `fomc` and `econ_calendar` (exact values).
+Time filter kinds:
+- `time_filter.kind: fomc | econ_calendar`
 
 ## Data Management
 
@@ -137,26 +115,7 @@ Gate pipeline config:
 - Gate is ON if it appears in `pipeline:`.
 - Gate order is the list order.
 
-## Web UI
-
-Browser-based backtest runner at http://localhost:8080
-
-**Reports served by the UI:**
-- Equity/performance report: `/report/<strategy_id>`
-- Trade breakdown report: `/trades/<strategy_id>`
-- Yearly variant: add `?mode=yearly`
-
-**Available strategies:**
-- Buy & Hold
-- Trend (MA 20/100) - baseline
-- Mean Reversion (Z-score)
-- Best Trend (all filters)
-
 ## Development
-
-```bash
-.venv/bin/python quantlab/webui/backtest_ui.py --port 8080
-```
 
 - **API Key:** FRED_API_KEY for economic calendar
 - **Design:** Strategy classes with composable gates, single backtest engine
