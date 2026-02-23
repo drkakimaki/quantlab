@@ -1,0 +1,26 @@
+{
+  "artifacts": [
+    "canon.yaml",
+    "candidate.yaml",
+    "summary.csv",
+    "canon_periods.csv",
+    "candidate_periods.csv",
+    "canon_duration_train.csv",
+    "candidate_duration_train.csv",
+    "duration_delta_train_candidate_minus_canon.csv",
+    "canon_duration_holdout.csv",
+    "candidate_duration_holdout.csv",
+    "duration_delta_holdout_candidate_minus_canon.csv"
+  ],
+  "baseline_config": "configs/trend_based/current.yaml",
+  "candidate_change": "Removed gate htf_confirm from pipeline",
+  "date": "2026-02-23",
+  "dd_cap_percent": 20.0,
+  "initial_capital": 1000.0,
+  "kind": "decision_bundle",
+  "objective": "maximize sum(period PnL%) subject to worst MaxDD <= 20%, with holdout excluded via periods.score_exclude",
+  "score_exclude": [
+    "2026"
+  ],
+  "slug": "drop_htf_confirm_v1"
+}
