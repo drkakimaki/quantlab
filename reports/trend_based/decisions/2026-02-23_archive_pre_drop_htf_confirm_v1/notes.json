@@ -1,0 +1,17 @@
+{
+  "date": "2026-02-23",
+  "description": "Snapshot of the canonical best_trend config BEFORE removing htf_confirm from the pipeline. Stored for overfitting/robustness comparisons.",
+  "kind": "archive",
+  "name": "canon_pre_drop_htf_confirm",
+  "score": {
+    "avg_sharpe": 1.3517871738143787,
+    "maxdd_violation": 0.0,
+    "ok": true,
+    "sum_pnl": 379.3248999999877,
+    "worst_maxdd": -17.386295719502197
+  },
+  "score_exclude": [
+    "2026"
+  ],
+  "source_commit": "edbfd45"
+}
