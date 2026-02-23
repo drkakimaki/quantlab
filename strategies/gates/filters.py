@@ -324,6 +324,11 @@ class TimeFilterGate:
     """Time filter gate.
 
     Canonical semantics: **force_flat** (positions are zeroed when blocked).
+
+    Mask source precedence (safest + simplest):
+      1) context["allow_mask"] (per-period, injected by runner)
+      2) self.allow_mask (injected at construction time)
+      3) if neither is present -> no-op
     """
 
     def __init__(
@@ -342,14 +347,11 @@ class TimeFilterGate:
         prices: pd.Series,
         context: dict | None = None,
     ) -> pd.Series:
-        if self.allow_mask is None:
-            return positions
-
-        # Get allow_mask from context if not set
-        mask = self.allow_mask
+        mask = None
         if context and "allow_mask" in context:
             mask = context["allow_mask"]
-
+        if mask is None:
+            mask = self.allow_mask
         if mask is None:
             return positions
 
