@@ -1,6 +1,7 @@
-# Quantlab - Trading Strategy Backtesting
+# Quantlab - Trading Strategy R&D
 
-Modular backtesting with Strategy classes, composable gates, and a unified engine.
+Quantlab is a modular trading-strategy development and backtesting framework with a unified execution engine and a config-driven gate pipeline.
+It includes a WebUI runner for HTML reports and an agent-friendly `quantlab.rnd` CLI.
 
 ## File Structure
 
