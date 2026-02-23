@@ -75,7 +75,7 @@ Source of truth: `configs/trend_based/current.yaml` → `pipeline:`
 
 4. **time_filter** — force-flat allow-mask
    - params: `{}`
-   - mask is built by the runner from the configured `time_filter.kind` in the YAML.
+   - mask is built by the runner from `time_filter:` in `configs/trend_based/current.yaml`.
 
 5. **ema_strength_sizing** — size up on strong separation (segment-held)
    - params: `ema_fast=40`, `ema_slow=300`, `atr_n=20`, `strong_k=0.20`, `size_base=1.0`, `size_strong=2.0`
@@ -102,7 +102,7 @@ Source of truth: `configs/trend_based/current.yaml` → `pipeline:`
 - Base prices: 5m OHLC close (XAUUSD)
 - HTF bars: 15m OHLC (XAUUSD)
 - Corr series: optional (disabled in canonical pipeline)
-- Time filter calendar: depends on `time_filter.kind` (e.g. FOMC decision days CSV)
+- Time filter calendar: depends on `time_filter.kind` (canonical: `fomc` around 19:00 UTC, pre=2h post=0.5h)
 
 ---
 

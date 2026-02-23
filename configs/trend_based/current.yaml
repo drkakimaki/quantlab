@@ -27,6 +27,16 @@ costs:
 trend:
   fast: 30
   slow: 75
+
+# Strategy-agnostic time filter config (used by the runner to build allow_mask)
+time_filter:
+  kind: fomc
+  fomc:
+    days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
+    utc_hhmm: "19:00"
+    pre_hours: 2.0
+    post_hours: 0.5
+
 pipeline:
 - gate: htf_confirm
   params:
