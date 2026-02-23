@@ -208,27 +208,46 @@ class NoChopGate:
             seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
             seg_entry_ok = entry_ok.groupby(seg).transform("max")
             pos = (gate_on & seg_entry_ok).astype(float)
-        
-        # Store nochop_ok_base for exit_bad_bars
-        pos.attrs['nochop_ok_base'] = nochop_ok_base
-        
+
         return pos
-    
-    def apply_exit_bad_bars(self, positions: pd.Series) -> pd.Series:
-        """Apply exit_bad_bars after all other gates."""
+
+    def apply_exit_bad_bars(
+        self,
+        positions: pd.Series,
+        prices: pd.Series,
+        context: dict | None = None,
+    ) -> pd.Series:
+        """Apply exit_bad_bars as a post-processing step.
+
+        This is intentionally applied *after* other gates (notably time_filter),
+        but it must not rely on pandas `.attrs` surviving through transforms.
+
+        We recompute `nochop_ok_base` from HTF bars each time.
+        """
         if self.exit_bad_bars <= 0:
             return positions
-        
-        nochop_ok_base = positions.attrs.get('nochop_ok_base', pd.Series(True, index=positions.index))
-        
-        gate_on = positions > 0.0
+
+        if context is None or "bars_15m" not in context:
+            return positions
+
+        htf_close = context["bars_15m"]["close"].astype(float).dropna()
+        htf_close.index = pd.to_datetime(htf_close.index)
+
+        ema_nc = htf_close.ewm(span=self.ema, adjust=False).mean()
+        above = (htf_close > ema_nc).astype(int)
+        above_cnt = above.rolling(self.lookback, min_periods=self.lookback).sum()
+        nochop_ok = (above_cnt >= self.min_closes).astype(bool)
+        nochop_ok_base = nochop_ok.reindex(positions.index).ffill().fillna(False)
+
+        gate_on = positions.fillna(0.0).astype(float) > 0.0
         seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
+
         bad_in_seg = (~nochop_ok_base) & gate_on
         grp = (~bad_in_seg).cumsum()
         streak = bad_in_seg.astype(int).groupby(grp).cumsum()
-        trigger = streak >= self.exit_bad_bars
+        trigger = streak >= int(self.exit_bad_bars)
         seg_kill = trigger.groupby(seg).cummax()
-        
+
         return positions.where(~seg_kill, 0.0)
 
 
@@ -1092,7 +1111,7 @@ class TrendStrategyWithGates(StrategyBase):
 
         # NoChop exit_bad_bars (after time_filter)
         if self.nochop_gate and self.nochop_gate.exit_bad_bars > 0:
-            pos = self.nochop_gate.apply_exit_bad_bars(pos)
+            pos = self.nochop_gate.apply_exit_bad_bars(pos, px, context)
 
         # EMA strength sizing (after time_filter + exit_bad_bars, before seasonality cap)
         if self.ema_strength_sizing_gate:
