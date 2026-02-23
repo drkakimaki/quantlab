@@ -5,8 +5,10 @@ import pandas as pd
 from ...engine.backtest import prices_to_returns
 
 from .types import SignalGate
+from .registry import register_gate
 
 
+@register_gate("ema_strength_sizing")
 class EMAStrengthSizingGate:
     """EMA separation *strength* sizing gate.
 
@@ -90,6 +92,7 @@ class EMAStrengthSizingGate:
         return p.where(~gate_on, size_in_seg)
 
 
+@register_gate("seasonality_cap")
 class SeasonalitySizeCapGate:
     """Seasonality-based position size cap.
 

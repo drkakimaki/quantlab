@@ -6,8 +6,10 @@ from ...engine.backtest import prices_to_returns
 from ...time_filter import apply_time_filter
 
 from .types import SignalGate
+from .registry import register_gate
 
 
+@register_gate("htf_confirm")
 class HTFConfirmGate:
     """HTF confirmation gate.
     
@@ -50,6 +52,7 @@ class HTFConfirmGate:
         return positions * htf_on_base
 
 
+@register_gate("ema_sep")
 class EMASeparationGate:
     """EMA separation gate using HTF bars.
     
@@ -112,6 +115,7 @@ class EMASeparationGate:
         return positions.where(ema_sep_ok_base, 0.0)
 
 
+@register_gate("nochop")
 class NoChopGate:
     """No-chop gate using HTF bars.
     
@@ -175,46 +179,7 @@ class NoChopGate:
 
         return pos
 
-    def apply_exit_bad_bars(
-        self,
-        positions: pd.Series,
-        prices: pd.Series,
-        context: dict | None = None,
-    ) -> pd.Series:
-        """Apply exit_bad_bars as a post-processing step.
-
-        This is intentionally applied *after* other gates (notably time_filter),
-        but it must not rely on pandas `.attrs` surviving through transforms.
-
-        We recompute `nochop_ok_base` from HTF bars each time.
-        """
-        if self.exit_bad_bars <= 0:
-            return positions
-
-        if context is None or "bars_15m" not in context:
-            return positions
-
-        htf_close = context["bars_15m"]["close"].astype(float).dropna()
-        htf_close.index = pd.to_datetime(htf_close.index)
-
-        ema_nc = htf_close.ewm(span=self.ema, adjust=False).mean()
-        above = (htf_close > ema_nc).astype(int)
-        above_cnt = above.rolling(self.lookback, min_periods=self.lookback).sum()
-        nochop_ok = (above_cnt >= self.min_closes).astype(bool)
-        nochop_ok_base = nochop_ok.reindex(positions.index).ffill().fillna(False)
-
-        gate_on = positions.fillna(0.0).astype(float) > 0.0
-        seg = gate_on.ne(gate_on.shift(1, fill_value=False)).cumsum()
-
-        bad_in_seg = (~nochop_ok_base) & gate_on
-        grp = (~bad_in_seg).cumsum()
-        streak = bad_in_seg.astype(int).groupby(grp).cumsum()
-        trigger = streak >= int(self.exit_bad_bars)
-        seg_kill = trigger.groupby(seg).cummax()
-
-        return positions.where(~seg_kill, 0.0)
-
-
+@register_gate("corr")
 class CorrelationGate:
     """Correlation stability gate with flip counting and confirm sizing.
     
@@ -356,6 +321,7 @@ class CorrelationGate:
         return pos * size_in_seg
 
 
+@register_gate("time_filter")
 class TimeFilterGate:
     """Time filter gate.
 

@@ -5,8 +5,10 @@ import pandas as pd
 from ...engine.backtest import prices_to_returns
 
 from .types import SignalGate
+from .registry import register_gate
 
 
+@register_gate("mid_loss_limiter")
 class MidDurationLossLimiterGate:
     """Exit losers in the toxic mid-duration band.
 
@@ -86,6 +88,7 @@ class MidDurationLossLimiterGate:
         return p.where(~kill, 0.0)
 
 
+@register_gate("no_recovery_exit")
 class NoRecoveryExitGate:
     """No-recovery exit.
 
@@ -141,6 +144,7 @@ class NoRecoveryExitGate:
         return p.where(~kill, 0.0)
 
 
+@register_gate("profit_milestone")
 class ProfitMilestoneGate:
     """Kill trades that fail to reach a profit milestone by N bars.
 
@@ -201,6 +205,7 @@ class ProfitMilestoneGate:
         return p.where(~kill, 0.0)
 
 
+@register_gate("rolling_max_exit")
 class RollingMaxExitGate:
     """Exit if recent max unrealized return is too low (stagnation filter).
 
@@ -268,6 +273,7 @@ class RollingMaxExitGate:
         return p.where(~kill, 0.0)
 
 
+@register_gate("shock_exit")
 class ShockExitGate:
     """Shock-exit risk gate.
 

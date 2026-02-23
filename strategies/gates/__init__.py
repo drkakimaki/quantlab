@@ -4,7 +4,9 @@ This package holds small, focused gate implementations.
 """
 
 from .types import SignalGate
+from .registry import GateSpec, make_gate, register_factory, register_gate, registered_gates
 from .filters import HTFConfirmGate, EMASeparationGate, NoChopGate, CorrelationGate, TimeFilterGate
+from .nochop_exit_bad_bars import NoChopExitBadBarsGate
 from .sizing import EMAStrengthSizingGate, SeasonalitySizeCapGate
 from .churn import ChurnGate
 from .exits import (
@@ -17,10 +19,17 @@ from .exits import (
 
 __all__ = [
     "SignalGate",
+    # registry
+    "GateSpec",
+    "register_gate",
+    "register_factory",
+    "make_gate",
+    "registered_gates",
     # filters
     "HTFConfirmGate",
     "EMASeparationGate",
     "NoChopGate",
+    "NoChopExitBadBarsGate",
     "CorrelationGate",
     "TimeFilterGate",
     # sizing

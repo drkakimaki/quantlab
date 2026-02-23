@@ -3,8 +3,10 @@ from __future__ import annotations
 import pandas as pd
 
 from .types import SignalGate
+from .registry import register_gate
 
 
+@register_gate("churn")
 class ChurnGate:
     """Churn-reduction gate (signal debouncing + re-entry cooldown).
 
