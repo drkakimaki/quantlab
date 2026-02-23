@@ -114,6 +114,110 @@ def build_allow_mask_from_events(index: pd.DatetimeIndex, *, events: list[EventW
     return allow.astype(bool)
 
 
+def build_allow_mask_from_econ_calendar(
+    index: pd.DatetimeIndex,
+    *,
+    start: dt.date,
+    end: dt.date,
+    csv_path: str,
+    rules: dict[str, dict],
+    default_tz: str = "UTC",
+) -> pd.Series | None:
+    """Build allow-mask from usd_important_events.csv style calendar.
+
+    The CSV stores dates as ts_utc at 00:00Z (date-only). We override the time-of-day
+    per rule via `utc_hhmm`.
+
+    Parameters
+    ----------
+    rules:
+      Mapping of rule_name -> config dict with keys:
+        - match: list[str] substrings to match against the `event` field (OR)
+        - utc_hhmm: "HH:MM" release time in UTC
+        - pre_hours: float
+        - post_hours: float
+        - importance: optional list[str] filter (e.g. ["high"]) (default: no filter)
+    """
+    if csv_path is None:
+        return None
+
+    import os
+
+    if not os.path.exists(csv_path):
+        return None
+
+    idx = pd.DatetimeIndex(index)
+    if idx.tz is None:
+        idx = idx.tz_localize("UTC")
+
+    df = pd.read_csv(csv_path)
+    if df is None or len(df) == 0:
+        return None
+
+    if "ts_utc" not in df.columns or "event" not in df.columns:
+        return None
+
+    df = df.copy()
+    df["ts_utc"] = pd.to_datetime(df["ts_utc"], utc=True, errors="coerce")
+    df = df.dropna(subset=["ts_utc"]).copy()
+
+    # date range filter (by date part)
+    d0 = pd.Timestamp(start).tz_localize("UTC")
+    d1 = pd.Timestamp(end).tz_localize("UTC") + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    df = df[(df["ts_utc"] >= d0) & (df["ts_utc"] <= d1)].copy()
+
+    if df.empty:
+        return None
+
+    events: list[EventWindow] = []
+
+    for _rule_name, rule in (rules or {}).items():
+        if not isinstance(rule, dict):
+            continue
+
+        match = rule.get("match") or []
+        if isinstance(match, str):
+            match = [match]
+        match = [str(x) for x in match if str(x)]
+        if not match:
+            continue
+
+        utc_hhmm = str(rule.get("utc_hhmm") or "00:00")
+        hh, mm = _parse_hhmm(utc_hhmm)
+        pre = dt.timedelta(hours=float(rule.get("pre_hours", 0.0) or 0.0))
+        post = dt.timedelta(hours=float(rule.get("post_hours", 0.0) or 0.0))
+
+        imp = rule.get("importance")
+        if isinstance(imp, str):
+            imp = [imp]
+        imp = [str(x) for x in (imp or [])]
+
+        # filter rows matching substrings
+        m = pd.Series(False, index=df.index)
+        for s in match:
+            m = m | df["event"].astype(str).str.contains(s, case=False, na=False, regex=False)
+
+        sub = df[m].copy()
+        if imp and "importance" in sub.columns:
+            sub = sub[sub["importance"].astype(str).isin(imp)].copy()
+
+        if sub.empty:
+            continue
+
+        # Override time-of-day on the date
+        for ts0 in sub["ts_utc"].tolist():
+            ts0 = pd.Timestamp(ts0)
+            if ts0.tzinfo is None:
+                ts0 = ts0.tz_localize("UTC")
+            ts = pd.Timestamp(dt.datetime(ts0.year, ts0.month, ts0.day, hh, mm, tzinfo=dt.UTC))
+            events.append(EventWindow(ts=ts, pre=pre, post=post))
+
+    if not events:
+        return None
+
+    return build_allow_mask_from_events(idx, events=events)
+
+
 def apply_time_filter(
     pos_size: pd.Series,
     allow_mask: pd.Series,

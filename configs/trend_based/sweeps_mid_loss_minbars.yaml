@@ -1,0 +1,10 @@
+# Sweep min_bars for mid-duration loss limiter (keep max_bars=48, stop_ret=-0.010)
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+top_k: 10
+
+grid:
+  mid_loss_limiter.min_bars: [4, 6, 7, 8, 9, 10, 11, 12, 13]

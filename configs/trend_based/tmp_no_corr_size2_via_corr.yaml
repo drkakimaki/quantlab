@@ -1,0 +1,4 @@
+# Temp: emulate constant size=2 while removing corr filtering as much as possible
+# (implemented by corr gate that almost always passes, and sizes to 2)
+# This is basically the same as tmp_corr_always_on_size2.yaml (kept for naming clarity).
+imports: null

@@ -18,7 +18,7 @@ from ..strategies import (
     BacktestConfig,
 )
 from ..data.resample import load_dukascopy_ohlc
-from ..time_filter import EventWindow, build_allow_mask_from_events
+from ..time_filter import EventWindow, build_allow_mask_from_events, build_allow_mask_from_econ_calendar
 from .. import report_periods_equity_only
 from ..reporting.generate_trades_report import report_periods_trades_html
 from .periods import build_periods
@@ -74,22 +74,22 @@ def load_fomc_mask(
     """Build FOMC allow mask for the period."""
     if not fomc_days_path.exists():
         return None
-    
+
     fomc_cfg = fomc_cfg or {}
     utc_hhmm = fomc_cfg.get("utc_hhmm", "19:00")
     pre_hours = fomc_cfg.get("pre_hours", 2.0)
     post_hours = fomc_cfg.get("post_hours", 0.5)
-    
+
     df = pd.read_csv(fomc_days_path)
     if "date" not in df.columns:
         return None
-    
+
     days = [dt.date.fromisoformat(str(x)) for x in df["date"].tolist()]
     days = [d for d in days if start <= d <= end]
-    
+
     if not days:
         return None
-    
+
     hh, mm = (int(x) for x in utc_hhmm.split(":"))
     events = [
         EventWindow(
@@ -99,8 +99,53 @@ def load_fomc_mask(
         )
         for d in days
     ]
-    
+
     return build_allow_mask_from_events(index, events=events)
+
+
+def load_time_filter_mask(
+    index: pd.DatetimeIndex,
+    start: dt.date,
+    end: dt.date,
+    *,
+    cfg: dict,
+    workspace: Path,
+) -> pd.Series | None:
+    """Load allow mask for the configured time_filter kind.
+
+    Supports:
+    - kind=fomc (backward compatible)
+    - kind=econ_calendar (reads usd_important_events.csv and applies per-event rules)
+    """
+    tf = cfg.get("time_filter", {}) or {}
+    kind = (tf.get("kind") or "fomc").strip().lower()
+
+    if kind == "fomc":
+        fomc_cfg = tf.get("fomc", {}) or {}
+        days_csv = fomc_cfg.get("days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv")
+        return load_fomc_mask(index, start, end, workspace / str(days_csv), fomc_cfg)
+
+    if kind in {"econ_calendar", "econ", "calendar"}:
+        ec = tf.get("econ_calendar", {}) or {}
+        csv_rel = ec.get("csv", "quantlab/data/econ_calendar/usd_important_events.csv")
+        rules = ec.get("rules", {}) or {}
+
+        # Resolve paths relative to workspace (backward compatible with either
+        # "quantlab/data/..." or "data/..." style paths).
+        p1 = (workspace / str(csv_rel)).resolve()
+        p2 = (workspace / "quantlab" / str(csv_rel)).resolve()
+        csv_path = str(p1 if p1.exists() else p2)
+
+        return build_allow_mask_from_econ_calendar(
+            index,
+            start=start,
+            end=end,
+            csv_path=csv_path,
+            rules=rules,
+        )
+
+    # Unknown kind -> no mask
+    return None
 
 
 def run_backtest(
@@ -299,11 +344,7 @@ def _run_best_trend(
     corr_symbol = cfg.get("corr_symbol", "XAGUSD")
     corr2_symbol = cfg.get("corr2_symbol", "EURUSD")
     
-    # Load FOMC days
-    fomc_path = WORKSPACE / cfg.get("time_filter", {}).get("fomc", {}).get(
-        "days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv"
-    )
-    fomc_cfg = cfg.get("time_filter", {}).get("fomc", {})
+    # time_filter is loaded per-period via load_time_filter_mask (supports fomc or econ_calendar)
     
     results = {}
     
@@ -317,9 +358,13 @@ def _run_best_trend(
             corr2_symbol=corr2_symbol,
         )
         
-        # Build FOMC mask
-        allow_mask = load_fomc_mask(
-            data["prices"].index, start, end, fomc_path, fomc_cfg
+        # Build allow mask (time_filter)
+        allow_mask = load_time_filter_mask(
+            data["prices"].index,
+            start,
+            end,
+            cfg=cfg,
+            workspace=WORKSPACE,
         )
         
         # Build strategy from config

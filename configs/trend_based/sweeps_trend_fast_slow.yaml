@@ -1,0 +1,11 @@
+# Sweep base trend SMA fast/slow (keep other gates fixed)
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+top_k: 12
+
+grid:
+  trend.fast: [20, 25, 30, 35]
+  trend.slow: [60, 75, 90]

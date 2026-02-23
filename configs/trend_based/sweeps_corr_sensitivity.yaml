@@ -1,0 +1,10 @@
+# Quick sensitivity sweep: vary only corr stability strictness on XAG
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+# Keep same DD cap used in decision work
+dd_cap_percent: 20
+
+grid:
+  corr.xag.max_flips: [0, 1, 2, 3]

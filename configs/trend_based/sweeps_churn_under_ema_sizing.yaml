@@ -1,0 +1,13 @@
+# Churn sweep under new canonical: corr OFF + EMA-strength sizing ON.
+# Goal: reduce toxic mid-duration churn without harming long-duration winners.
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+# Keep top few for inspection
+top_k: 12
+
+grid:
+  churn.min_on_bars: [1, 2, 3, 4, 5]
+  churn.cooldown_bars: [0, 4, 8, 12, 16]

@@ -1,0 +1,10 @@
+# Sweep NoChop tightness under current canonical (incl EMA sizing + mid loss limiter)
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+top_k: 12
+
+grid:
+  nochop.min_closes: [18, 20, 22, 24, 26, 28, 30]

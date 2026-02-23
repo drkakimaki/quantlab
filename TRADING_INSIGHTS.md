@@ -39,15 +39,13 @@ What this is *not*:
 - 2023-2025: PnL **346.86%**, MaxDD **-14.49%**, Sharpe **2.16**
 - 2026 (HOLDOUT): PnL **161.39%**, MaxDD **-9.57%**, Sharpe **6.40**
 
-Note: `periods.score_exclude: ["2026"]` means 2026 is **excluded from optimization/scoring**, but still shown in reports.
-
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close
 - HTF: 15m OHLC confirm
 - Trend signal: SMA 30/75 (base) + HTF confirm SMA 30/75
-- Modules ON: EMA-sep, NoChop, FOMC force-flat, **EMA-strength sizing (size=2 only on strong separation)**, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, **Mid-duration loss limiter (13–48, -1%)**, **Time-stop (24 bars, -0.5%)**, ShockExit
+- Modules ON: EMA-sep, NoChop, **FOMC force-flat**, **EMA-strength sizing (size=2 only on strong separation)**, **SeasonalitySizeCap (June size<=1)**, **ChurnGate (debounce+cooldown)**, **Mid-duration loss limiter (13–48, -1%)**, **Time-stop (24 bars, -0.5%)**, ShockExit
 - Corr stability gate: **OFF** (removed for simplicity; replaced by EMA-strength sizing)
 - Discrete sizing: 0.01 / 0.02 lots only
 
@@ -81,6 +79,8 @@ Note: `periods.score_exclude: ["2026"]` means 2026 is **excluded from optimizati
     - `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/`
 - FOMC tuning: wide windows/whole-day blocking too blunt; best ended up **force-flat** with **19:00Z pre=2h post=0.5h** under tuned modules.
   - Source: `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
+- Econ calendar expansion (CPI/NFP): implemented infra + wiring, but **disabled in canonical** for now (did not improve train score in quick sweeps).
+  - Source: `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/`
 
 ### Behavioral fingerprints (trade breakdown)
 - **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
@@ -116,6 +116,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 - `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/` (corr removed; sizing via EMA strength)
 - `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/` (post-entry loss limiter)
 - `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/` (post-entry time-stop)
+- `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/` (econ calendar CPI/NFP disabled)
 
 ### Risk research
 - `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`

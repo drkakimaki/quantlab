@@ -24,7 +24,7 @@ from .engine.metrics import sharpe
 # - If this ever becomes painful (extra deps / circular imports), extract the shared
 #   functions into a neutral module (e.g. quantlab/inputs.py) and have both import it.
 from .webui.periods import build_periods
-from .webui.runner import load_period_data, load_fomc_mask  # type: ignore
+from .webui.runner import load_period_data, load_time_filter_mask  # type: ignore
 from .webui.config import WORKSPACE
 from .strategies.trend_following import TrendStrategyWithGates
 from .strategies.base import BacktestConfig
@@ -183,13 +183,8 @@ def _prepare_best_trend_inputs(cfg: dict[str, Any]) -> list[PreparedPeriod]:
     corr_symbol = cfg.get("corr_symbol", "XAGUSD")
     corr2_symbol = cfg.get("corr2_symbol", "EURUSD")
 
-    fomc_cfg = (cfg.get("time_filter", {}) or {}).get("fomc", {}) or {}
-    days_csv = (cfg.get("time_filter", {}) or {}).get("fomc", {}).get(
-        "days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv"
-    )
-
-    # Match WebUI semantics: paths in YAML are resolved relative to WORKSPACE.
-    fomc_path = WORKSPACE / str(days_csv)
+    # time_filter mask is loaded per-period via webui.runner.load_time_filter_mask
+    # (supports both fomc and econ_calendar kinds).
 
     out: list[PreparedPeriod] = []
     for name, start, end in periods:
@@ -202,7 +197,8 @@ def _prepare_best_trend_inputs(cfg: dict[str, Any]) -> list[PreparedPeriod]:
             corr_symbol=corr_symbol,
             corr2_symbol=corr2_symbol,
         )
-        allow_mask = load_fomc_mask(data["prices"].index, start, end, fomc_path, fomc_cfg)
+        # NOTE: allow_mask is intentionally NOT cached here. Sweeps may vary
+        # time_filter parameters, so the mask must be recomputed per candidate.
         context = {
             "bars_15m": data.get("bars_15m"),
             "prices_xag": data.get("prices_xag"),
@@ -215,7 +211,7 @@ def _prepare_best_trend_inputs(cfg: dict[str, Any]) -> list[PreparedPeriod]:
                 end=end,
                 prices=data["prices"],
                 context=context,
-                allow_mask=allow_mask,
+                allow_mask=None,
             )
         )
     return out
@@ -239,8 +235,21 @@ def _run_best_trend_periods(
 
     out: dict[str, pd.DataFrame] = {}
     for p in prepared:
-        strat = TrendStrategyWithGates.from_config(cfg, allow_mask=p.allow_mask)
-        res = strat.run_backtest(p.prices, context=p.context, config=bt_cfg)
+        # Recompute time_filter mask per config (important for sweeps).
+        allow_mask = load_time_filter_mask(
+            pd.DatetimeIndex(p.prices.index),
+            p.start,
+            p.end,
+            cfg=cfg,
+            workspace=WORKSPACE,
+        )
+        strat = TrendStrategyWithGates.from_config(cfg, allow_mask=allow_mask)
+
+        # Also provide allow_mask in context for extra robustness.
+        ctx = dict(p.context)
+        ctx["allow_mask"] = allow_mask
+
+        res = strat.run_backtest(p.prices, context=ctx, config=bt_cfg)
         out[p.name] = res.df
 
     return out

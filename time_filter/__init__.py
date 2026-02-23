@@ -18,6 +18,7 @@ from .core import (
     apply_time_filter,
     build_allow_mask_from_events,
     build_allow_mask_from_sessions,
+    build_allow_mask_from_econ_calendar,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "apply_time_filter",
     "build_allow_mask_from_events",
     "build_allow_mask_from_sessions",
+    "build_allow_mask_from_econ_calendar",
 ]

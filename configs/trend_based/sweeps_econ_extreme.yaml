@@ -1,0 +1,11 @@
+# Extreme econ_calendar sweep (small grid): should definitely change results
+kind: grid
+base: configs/trend_based/current.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+top_k: 20
+
+grid:
+  time_filter.econ_calendar.rules.CPI.post_hours: [0.0, 0.5, 6.0, 12.0]
+  time_filter.econ_calendar.rules.NFP.post_hours: [0.0, 0.5, 6.0, 12.0]

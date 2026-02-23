@@ -1,0 +1,74 @@
+# Temp: "strong gates" stack with constant size=2 via permissive corr.
+# Keep: HTF, EMA-sep, NoChop, Churn, Risk. Disable: time_filter + seasonality (optional).
+# Rationale: isolate if strongest gates + simple sizing beats corr complexity.
+
+symbol: XAUUSD
+corr_symbol: XAGUSD
+corr2_symbol: EURUSD
+
+roots:
+  root_5m_ohlc: quantlab/data/dukascopy_5m_ohlc
+  root_15m_ohlc: quantlab/data/dukascopy_15m_ohlc
+
+periods:
+  mode: three_block
+  three_block:
+    p1: { name: "2020-2022", start: "2020-01-01", end: "2022-12-31" }
+    p2: { name: "2023-2025", start: "2023-01-01", end: "2025-12-31" }
+    p3: { name: "2026", start: "2026-01-01", end: "today" }
+
+costs:
+  fee_per_lot: 3.50
+  spread_per_lot: 3.50
+
+trend:
+  fast: 30
+  slow: 75
+
+htf_confirm:
+  rule: 15min
+
+ema_sep:
+  ema_fast: 40
+  ema_slow: 300
+  atr_n: 20
+  sep_k: 0.05
+
+nochop:
+  ema: 20
+  lookback: 40
+  min_closes: 24
+  entry_held: false
+  exit_bad_bars: 0
+
+# corr used only to apply constant size=2 (made permissive)
+corr:
+  logic: or
+  xag:
+    window: 10
+    min_abs: 0.0
+    flip_lookback: 10
+    max_flips: 999
+  eur:
+    window: 10
+    min_abs: 0.0
+    flip_lookback: 10
+    max_flips: 999
+
+sizing:
+  confirm_size_one: 2.0
+  confirm_size_both: 2.0
+
+# Disable these for now (optional)
+time_filter: null
+seasonality: null
+
+churn:
+  min_on_bars: 3
+  cooldown_bars: 8
+
+risk:
+  shock_exit_abs_ret: 0.006
+  shock_exit_sigma_k: 0.0
+  shock_exit_sigma_window: 96
+  shock_cooldown_bars: 0

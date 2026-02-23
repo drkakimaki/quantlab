@@ -1,0 +1,10 @@
+# Sweep early-window stop_ret for two-stage loss limiter
+kind: grid
+base: configs/trend_based/experiment_mid_loss_two_stage.yaml
+mode: three_block
+initial_capital: 1000.0
+dd_cap_percent: 20
+top_k: 10
+
+grid:
+  mid_loss_limiter_early.stop_ret: [-0.004, -0.006, -0.008, -0.010, -0.012, -0.015, -0.020]

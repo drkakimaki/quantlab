@@ -1,0 +1,10 @@
+{
+  "config_path": "configs/trend_based/current.yaml",
+  "dd_cap_percent": 20.0,
+  "initial_capital": 1000.0,
+  "kind": "run",
+  "mode": "three_block",
+  "score_exclude": [
+    "2026"
+  ]
+}

@@ -105,6 +105,8 @@ trade_log = extract_trade_log(result.df)
 
 Gate is ON when its config block is present, OFF when missing/null.
 
+Note: the `time_filter` supports an `econ_calendar` kind (CPI/NFP/etc) via `data/econ_calendar/usd_important_events.csv`, but the canonical config currently uses `kind: fomc`.
+
 ## Data Management
 
 ```bash

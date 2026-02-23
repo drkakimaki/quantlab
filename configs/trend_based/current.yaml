@@ -79,6 +79,8 @@ sizing:
 # Strategy-agnostic time filter
 # (currently used for FOMC; mode is implemented in quantlab.time_filter)
 time_filter:
+  # NOTE: econ_calendar (CPI/NFP/etc) support exists but is currently disabled.
+  # Canonical time filter is FOMC force-flat.
   kind: fomc
   fomc:
     days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
