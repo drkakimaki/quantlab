@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from .engine.metrics import sharpe
+from .engine.metrics import sharpe, sharpe_bootstrap
 
 
 # We intentionally reuse WebUI modules for period building + data loading + FOMC masking.
@@ -127,8 +127,8 @@ def _max_drawdown_percent(equity: pd.Series) -> float:
     return float(dd.min()) * 100.0
 
 
-def _period_stats(bt: pd.DataFrame, *, initial_capital: float) -> tuple[float, float, float]:
-    """Return (pnl_percent, maxdd_percent, sharpe).
+def _period_stats(bt: pd.DataFrame, *, initial_capital: float) -> tuple[float, float, float, float, float]:
+    """Return (pnl_percent, maxdd_percent, sharpe, sharpe_ci_lo, sharpe_ci_hi).
 
     Sharpe is computed canonically on daily returns derived from equity.
     """
@@ -141,7 +141,10 @@ def _period_stats(bt: pd.DataFrame, *, initial_capital: float) -> tuple[float, f
     pnl = (float(eq.iloc[-1]) / cap0 - 1.0) * 100.0
     maxdd = _max_drawdown_percent(eq)
     s = float(sharpe(eq))
-    return pnl, maxdd, s
+    s_ci = sharpe_bootstrap(eq)
+    s_lo = float(s_ci.get("lo", float("nan")))
+    s_hi = float(s_ci.get("hi", float("nan")))
+    return pnl, maxdd, s, s_lo, s_hi
 
 
 def _score_candidate(
@@ -167,12 +170,28 @@ def _score_candidate(
 
     for name, bt in period_dfs.items():
         if bt is None or len(bt) == 0:
-            pnl, maxdd, s = float("nan"), float("nan"), float("nan")
+            pnl, maxdd, s, s_lo, s_hi = (
+                float("nan"),
+                float("nan"),
+                float("nan"),
+                float("nan"),
+                float("nan"),
+            )
         else:
-            pnl, maxdd, s = _period_stats(bt, initial_capital=initial_capital)
+            pnl, maxdd, s, s_lo, s_hi = _period_stats(bt, initial_capital=initial_capital)
 
         scored = (name not in exclude)
-        rows.append({"period": name, "pnl_percent": pnl, "maxdd_percent": maxdd, "sharpe": s, "scored": bool(scored)})
+        rows.append(
+            {
+                "period": name,
+                "pnl_percent": pnl,
+                "maxdd_percent": maxdd,
+                "sharpe": s,
+                "sharpe_ci_lo": s_lo,
+                "sharpe_ci_hi": s_hi,
+                "scored": bool(scored),
+            }
+        )
 
         if not scored:
             continue
@@ -211,6 +230,8 @@ def _score_candidate(
                 "pnl_percent": score.sum_pnl,
                 "maxdd_percent": score.worst_maxdd,
                 "sharpe": score.avg_sharpe,
+                "sharpe_ci_lo": float("nan"),
+                "sharpe_ci_hi": float("nan"),
                 "scored": True,
             }
         ]

@@ -11,6 +11,7 @@ import pandas as pd
 
 from ..engine.metrics import (
     sharpe,
+    sharpe_bootstrap,
     avg_win_loss_from_position,
     profit_factor_from_position,
     win_rate_from_position,
@@ -24,6 +25,8 @@ class PeriodRow:
     pnl: float
     max_drawdown: float
     sharpe: float
+    sharpe_ci_lo: float
+    sharpe_ci_hi: float
     win_rate: float
     profit_factor: float
     avg_win: float
@@ -107,6 +110,8 @@ def report_periods_equity_only(
                     pnl=float("nan"),
                     max_drawdown=float("nan"),
                     sharpe=float("nan"),
+                    sharpe_ci_lo=float("nan"),
+                    sharpe_ci_hi=float("nan"),
                     win_rate=float("nan"),
                     profit_factor=float("nan"),
                     avg_win=float("nan"),
@@ -141,6 +146,9 @@ def report_periods_equity_only(
 
         # Canonical Sharpe: computed on daily returns derived from equity.
         s = float(sharpe(eq))
+        s_ci = sharpe_bootstrap(eq)
+        s_lo = float(s_ci.get("lo", float("nan")))
+        s_hi = float(s_ci.get("hi", float("nan")))
         if n_trades is None:
             trades = n_trades_from_position(bt, pos_col="position")
         else:
@@ -156,6 +164,8 @@ def report_periods_equity_only(
                 pnl=pnl,
                 max_drawdown=max_dd,
                 sharpe=s,
+                sharpe_ci_lo=s_lo,
+                sharpe_ci_hi=s_hi,
                 win_rate=wr,
                 profit_factor=pf,
                 avg_win=avg_win,
@@ -234,6 +244,7 @@ def report_periods_equity_only(
             f"<td class='num mono'>{pct(r.pnl)}</td>"
             f"<td class='num mono'>{pct(r.max_drawdown)}</td>"
             f"<td class='num mono'>{num(r.sharpe)}</td>"
+            f"<td class='num mono'>{num(r.sharpe_ci_lo)}…{num(r.sharpe_ci_hi)}</td>"
             f"<td class='num mono'>{pct(r.win_rate)}</td>"
             f"<td class='num mono'>{pf(r.profit_factor)}</td>"
             f"<td class='num mono'>{pct(r.avg_win)}</td>"
@@ -468,6 +479,7 @@ def report_periods_equity_only(
                 <th class='num' data-sort='num'>PnL</th>
                 <th class='num' data-sort='num'>Max DD</th>
                 <th class='num' data-sort='num'>Sharpe</th>
+                <th class='num' data-sort='text'>Sharpe CI</th>
                 <th class='num' data-sort='num'>Win Rate</th>
                 <th class='num' data-sort='num'>Profit Factor</th>
                 <th class='num' data-sort='num'>Avg Win</th>

@@ -68,6 +68,16 @@ def sharpe(
     This intentionally avoids intraday annualization debates.
     """
     r = daily_returns_from_equity(equity, tz=tz)
+    return sharpe_from_returns(r, annual_days=annual_days)
+
+
+def sharpe_from_returns(
+    r: pd.Series,
+    *,
+    annual_days: int = 252,
+) -> float:
+    """Annualized Sharpe from a 1D return series."""
+    r = _to_series(r).dropna().astype(float)
     if r.empty:
         return float("nan")
 
@@ -77,6 +87,63 @@ def sharpe(
         return float("nan")
 
     return float(np.sqrt(float(annual_days)) * mu / sig)
+
+
+def sharpe_bootstrap(
+    equity,
+    *,
+    n_boot: int = 2000,
+    ci: float = 0.95,
+    block_size: int = 21,
+    annual_days: int = 252,
+    tz: str | None = "UTC",
+    seed: int | None = 42,
+) -> dict[str, float | int]:
+    """Block-bootstrap CI for annualized Sharpe (daily equity returns).
+
+    Uses a circular block bootstrap on the *daily* returns derived from equity.
+
+    Returns keys:
+      point, lo, hi, ci, n_boot, block_size
+    """
+    r = daily_returns_from_equity(equity, tz=tz)
+    r = r.dropna().astype(float)
+
+    out: dict[str, float | int] = {
+        "point": float("nan"),
+        "lo": float("nan"),
+        "hi": float("nan"),
+        "ci": float(ci),
+        "n_boot": int(n_boot),
+        "block_size": int(block_size),
+    }
+
+    if len(r) < max(5, 2 * int(block_size)):
+        return out
+
+    values = r.to_numpy(dtype=float)
+    n = int(values.shape[0])
+    bs = int(block_size)
+    n_blocks = int(np.ceil(n / bs))
+
+    rng = np.random.default_rng(seed)
+    sharpes = np.empty(int(n_boot), dtype=float)
+
+    for i in range(int(n_boot)):
+        starts = rng.integers(0, n, size=n_blocks)
+        idx = np.concatenate([((np.arange(s, s + bs) % n)) for s in starts])[:n]
+        sample = values[idx]
+        sharpes[i] = sharpe_from_returns(sample, annual_days=annual_days)
+
+    sharpes = sharpes[np.isfinite(sharpes)]
+    if sharpes.size == 0:
+        return out
+
+    alpha = (1.0 - float(ci)) / 2.0
+    out["point"] = float(sharpe_from_returns(values, annual_days=annual_days))
+    out["lo"] = float(np.percentile(sharpes, 100.0 * alpha))
+    out["hi"] = float(np.percentile(sharpes, 100.0 * (1.0 - alpha)))
+    return out
 
 
 def max_drawdown(equity) -> float:
