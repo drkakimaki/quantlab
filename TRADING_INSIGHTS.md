@@ -1,6 +1,6 @@
 # TRADING_INSIGHTS.md
 
-**Last updated:** 2026-02-23 (Europe/Berlin)
+**Last updated:** 2026-02-24 (Europe/Berlin)
 
 A timeless **state + lessons** document for this repo.
 
@@ -37,7 +37,7 @@ What this is *not*:
 (from `rnd run` / canonical config)
 - 2020-2022: PnL **51.50%**, MaxDD **-16.33%**, Sharpe **0.70**
 - 2023-2025: PnL **366.20%**, MaxDD **-11.98%**, Sharpe **2.25**
-- 2026 (HOLDOUT): PnL **130.96%**, MaxDD **-16.92%**, Sharpe **4.77**
+- 2026 (HOLDOUT): PnL **172.07%**, MaxDD **-16.92%**, Sharpe **5.40**
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
@@ -87,23 +87,19 @@ Canonical pipeline knobs (pipeline elements only):
 
 ## 3) Strategy-specific insights — best_trend (XAUUSD)
 
-### What mattered (from sweeps)
-- Ablation (when controlling for sizing): **NoChop** and **Churn** are the dominant gates; EMA separation also matters.
-  - Source: `reports/trend_based/decisions/2026-02-14_ablation/`
+### What mattered (from decision bundles)
+- Sensitivity work suggests **NoChop** and **Churn** are dominant knobs; EMA separation also matters.
+  - Sources:
+    - `reports/trend_based/decisions/2026-02-23_nochop_sensitivity_v1/`
+    - `reports/trend_based/decisions/2026-02-23_churn_sensitivity_v1/`
+    - `reports/trend_based/decisions/2026-02-23_ema_sep_sensitivity_v1/`
 - HTF confirm (`htf_confirm`) was removed from canonical as a redundancy reduction step.
   - Evidence: `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/`
-  - Takeaway: Removing `htf_confirm` slightly improved 2023–2025 but worsened 2020–2022 and increased worst MaxDD on train; overall it looked close enough to drop for simplicity.
-- Corr module: historically a big lever mainly because it combined **filtering + sizing**. We have now removed it and replaced the sizing role with an **EMA-strength sizing** gate to reduce parameters.
-  - Source: `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/`
-- Post-entry controls: the biggest incremental improvements came from (a) a mid-duration loss limiter (13–48 bars, stop -1%) and (b) a **no-recovery exit** (if not recovered above -0.5% by 24 bars).
-  - Sources:
-    - `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/`
-    - `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/`
-- FOMC tuning: wide windows/whole-day blocking too blunt; best ended up **force-flat** with **19:00Z pre=2h post=0.5h** under tuned modules.
-  - Source: `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
-- Econ calendar expansion (CPI/NFP): implemented infra + wiring, but **disabled in canonical** for now (did not improve train score in quick sweeps).
-  - Source: `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/`
-- June is structurally weak; best mitigation was to **force-flat the entire month** (not just cap size).
+- Post-entry controls matter; exit sensitivity sweep is captured here:
+  - `reports/trend_based/decisions/2026-02-23_exits_sensitivity_v1/`
+- Econ calendar expansion (CPI/NFP): implemented infra + wiring, but **disabled in canonical** for now.
+  - `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/`
+- June is structurally weak; canonical mitigation is to **force-flat the entire month**.
   - Evidence: `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/`
   - Implementation: `time_filter.months.block: [6]` in `current.yaml`
 
@@ -130,22 +126,19 @@ Canonical pipeline knobs (pipeline elements only):
 Token hygiene: only open/read older decision bundles when explicitly discussing past tuning.
 
 ### Promotion / hyperparam work
-- `reports/trend_based/decisions/2026-02-14_filters_hyperparam_search/`
 - `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/` (promotion: removed redundant HTF confirm)
-- `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/` (promotion: June force-flat via time_filter)
-- `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/` (historical; corr gate now OFF)
-- `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
-- `reports/trend_based/decisions/2026-02-14_shock_exits/`
-- `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
-- `reports/trend_based/decisions/2026-02-21_june_softcap_size1_v0/`
-- `reports/trend_based/decisions/2026-02-22_no_corr_ema_strength_sizing_v1/` (corr removed; sizing via EMA strength)
-- `reports/trend_based/decisions/2026-02-22_mid_loss_limiter_stopret_-0p010_v1/` (post-entry loss limiter)
-- `reports/trend_based/decisions/2026-02-22_time_stop_24bars_-0p5pct_v1/` (post-entry no-recovery exit)
 - `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/` (econ calendar CPI/NFP disabled)
+- `reports/trend_based/decisions/2026-02-23_promote_2020_recovery_v1/`
+- `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/` (promotion: June force-flat via time_filter)
+
+### Sensitivities / robustness probes
+- `reports/trend_based/decisions/2026-02-23_ema_sep_sensitivity_v1/`
+- `reports/trend_based/decisions/2026-02-23_nochop_sensitivity_v1/`
+- `reports/trend_based/decisions/2026-02-23_churn_sensitivity_v1/`
+- `reports/trend_based/decisions/2026-02-23_exits_sensitivity_v1/`
 
 ### Risk research
-- `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
-- `reports/trend_based/decisions/2026-02-15_loss_drawdown_deepdive/`
+(TODO: add/restore pointers to the relevant decision bundles if/when they’re re-introduced.)
 
 ### Correctness / audits
-- `reports/trend_based/decisions/2026-02-14_lookahead_audit/`
+(TODO: add/restore pointers to the relevant decision bundles if/when they’re re-introduced.)

@@ -26,8 +26,7 @@ quantlab/
 ├── configs/
 │   └── trend_based/
 │       ├── reference/       # Archived reference configs
-│       ├── current.yaml     # Canonical config
-│       └── (sweeps/experiments)
+│       └── current.yaml     # Canonical config
 ├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
 ├── reports/                 # Output reports + decision bundles
@@ -55,14 +54,13 @@ quantlab/
 # Configs
 # - canonical run:     quantlab/configs/trend_based/current.yaml
 # - reference:         quantlab/configs/trend_based/reference/*.yaml
-# - experiments:       quantlab/configs/trend_based/experiment*.yaml
-# - sweeps (grids):    quantlab/configs/trend_based/sweeps*.yaml
 
 # Single scoring run
 .venv/bin/python -m quantlab.rnd run --config quantlab/configs/trend_based/current.yaml
 
-# Grid sweep (writes decision bundle if --decision-slug is set)
-.venv/bin/python -m quantlab.rnd sweep --sweep quantlab/configs/trend_based/sweeps.yaml --decision-slug sweep_fast_slow
+# (Optional) Sweeps
+# Sweeps are driven by `quantlab.rnd sweep` and dotted-path keys (see `--help`).
+# Decision bundles are written under `quantlab/reports/trend_based/decisions/`.
 ```
 
 ## Data Management
