@@ -1,3 +1,6 @@
+# Golden config used by tests/regression/test_best_trend_2024_2025_series.py
+# NOTE: Quantlab configs are canonical pipeline-based. Legacy flat blocks are not supported.
+
 symbol: XAUUSD
 corr_symbol: XAGUSD
 corr2_symbol: EURUSD
@@ -25,34 +28,7 @@ costs:
 trend:
   fast: 30
   slow: 75
-htf_confirm:
-  rule: 15min
-ema_sep:
-  ema_fast: 40
-  ema_slow: 300
-  atr_n: 20
-  sep_k: 0.05
-nochop:
-  ema: 20
-  lookback: 40
-  min_closes: 24
-  entry_held: false
-  exit_bad_bars: 0
-corr:
-  logic: or
-  xag:
-    window: 40
-    min_abs: 0.1
-    flip_lookback: 50
-    max_flips: 0
-  eur:
-    window: 75
-    min_abs: 0.1
-    flip_lookback: 75
-    max_flips: 5
-sizing:
-  confirm_size_one: 1.0
-  confirm_size_both: 2.0
+
 time_filter:
   kind: fomc
   fomc:
@@ -60,14 +36,50 @@ time_filter:
     utc_hhmm: '19:00'
     pre_hours: 2.0
     post_hours: 0.5
-churn:
-  min_on_bars: 3
-  cooldown_bars: 8
-seasonality:
-  month_size_cap:
-    6: 1.0
-risk:
-  shock_exit_abs_ret: 0.006
-  shock_exit_sigma_k: 0.0
-  shock_exit_sigma_window: 96
-  shock_cooldown_bars: 0
+
+pipeline:
+  - gate: htf_confirm
+    params:
+      fast: 30
+      slow: 75
+  - gate: ema_sep
+    params:
+      ema_fast: 40
+      ema_slow: 300
+      atr_n: 20
+      sep_k: 0.05
+  - gate: nochop
+    params:
+      ema: 20
+      lookback: 40
+      min_closes: 24
+      entry_held: false
+  - gate: corr
+    params:
+      logic: or
+      xag_window: 40
+      xag_min_abs: 0.1
+      xag_flip_lookback: 50
+      xag_max_flips: 0
+      eur_window: 75
+      eur_min_abs: 0.1
+      eur_flip_lookback: 75
+      eur_max_flips: 5
+      confirm_size_one: 1.0
+      confirm_size_both: 2.0
+  - gate: time_filter
+    params: {}
+  - gate: seasonality_cap
+    params:
+      month_size_cap:
+        6: 1.0
+  - gate: churn
+    params:
+      min_on_bars: 3
+      cooldown_bars: 8
+  - gate: shock_exit
+    params:
+      shock_exit_abs_ret: 0.006
+      shock_exit_sigma_k: 0.0
+      shock_exit_sigma_window: 96
+      shock_cooldown_bars: 0
