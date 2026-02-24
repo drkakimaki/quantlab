@@ -26,6 +26,8 @@ quantlab/
 ├── configs/
 │   └── trend_based/
 │       ├── current.yaml     # Canonical config
+│       ├── reference/       # Archived reference configs (robustness baselines)
+│       │   └── pre_htf_drop.yaml
 │       └── (sweeps/experiments)
 ├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
@@ -53,6 +55,7 @@ quantlab/
 
 # Configs
 # - canonical run:     quantlab/configs/trend_based/current.yaml
+# - reference:         quantlab/configs/trend_based/reference/*.yaml
 # - experiments:       quantlab/configs/trend_based/experiment*.yaml
 # - sweeps (grids):    quantlab/configs/trend_based/sweeps*.yaml
 
