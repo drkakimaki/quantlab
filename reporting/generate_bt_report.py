@@ -280,8 +280,13 @@ def report_periods_equity_only(
     scored_rows = [r for r in rows if r.period not in exclude]
 
     total_trades = int(sum((r.n_trades or 0) for r in scored_rows))
+
+    # Sum PnL across scored periods (matches rnd scoring).
+    sum_pnl = float(sum((r.pnl for r in scored_rows if np.isfinite(r.pnl)), 0.0))
+
     # Worst drawdown (most negative)
     worst_dd = float(min((r.max_drawdown for r in scored_rows if np.isfinite(r.max_drawdown)), default=float("nan")))
+
     # Average sharpe across periods (simple mean)
     sh_list = [r.sharpe for r in scored_rows if np.isfinite(r.sharpe)]
     avg_sharpe = float(np.mean(sh_list)) if sh_list else float("nan")
@@ -484,6 +489,7 @@ def report_periods_equity_only(
       <h1>{archetype}</h1>
       <div class='subtitle'>{base_line}</div>
       <div class='summary-strip'>
+        <div class='pill'>Sum PnL: <b>{pct(sum_pnl)}</b></div>
         <div class='pill'># Trades: <b>{total_trades:,}</b></div>
         <div class='pill'>Avg Sharpe: <b>{num(avg_sharpe)}</b></div>
         <div class='pill'>Worst MaxDD: <b>{pct(worst_dd)}</b></div>
