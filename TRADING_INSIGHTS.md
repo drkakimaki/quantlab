@@ -74,10 +74,7 @@ Canonical pipeline knobs (pipeline elements only):
 - **Near-parameter ensembling** can be more robust than chasing a single best setting (use sparingly).
 
 ### Workflow / process lessons (from this session)
-- **Always keep a strong reference config** (we archived `pre_htf_drop.yaml`) to sanity-check that changes aren’t just in-sample fitting.
-- **Treat time filters as infrastructure, not alpha:** seasonal blockouts (like flat June) belong in `time_filter` allow-masks, not as ad-hoc gates.
-- **Sweep tooling must support list-index paths** (e.g. `pipeline.0...`) or results become garbage; we fixed `rnd._set_in` accordingly.
-- **Holdout regressions had a consistent signature**: toxic mid-duration buckets (≈13–96 bars) blowing up.
+- **Always keep a strong reference config** (we archived `configs/trend_based/reference/pre_htf_drop.yaml`) to sanity-check that changes aren’t just in-sample fitting.
 
 ### Evaluation mindset
 - **Regime bias is real; we are intentionally long-only:** later years appear structurally bullish, so this project currently optimizes a **long-only trend** hypothesis (not a symmetric long/short system).
