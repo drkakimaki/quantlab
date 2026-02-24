@@ -319,45 +319,6 @@ class CorrelationGate:
         return pos * size_in_seg
 
 
-@register_gate("month_flat")
-class MonthFlatGate:
-    """Force-flat positions during specified calendar months.
-
-    Semantics: force_flat
-      - if month in `months` -> position = 0
-      - else -> unchanged
-
-    Intended for simple seasonal blockouts (e.g. disable June entirely).
-    """
-
-    def __init__(self, *, months: list[int] | tuple[int, ...] | set[int] | None = None):
-        m = months or []
-        self.months = sorted({int(x) for x in m})
-
-    @property
-    def name(self) -> str:
-        if not self.months:
-            return "MonthFlat(off)"
-        return "MonthFlat(" + ",".join(str(x) for x in self.months) + ")"
-
-    def __call__(
-        self,
-        positions: pd.Series,
-        prices: pd.Series,
-        context: dict | None = None,
-    ) -> pd.Series:
-        if not self.months:
-            return positions
-
-        pos = positions.fillna(0.0).astype(float)
-        idx = pd.DatetimeIndex(pos.index)
-        block = idx.month.isin(self.months)
-        if block.any():
-            pos = pos.copy()
-            pos.loc[block] = 0.0
-        return pos
-
-
 @register_gate("time_filter")
 class TimeFilterGate:
     """Time filter gate.
