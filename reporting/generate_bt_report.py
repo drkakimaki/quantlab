@@ -468,7 +468,7 @@ def report_periods_equity_only(
       <div class='sub'>{holdout_note}</div>
     </div>
 
-    <div class='section grid'>
+    <div class='section'>
       <div class='card'>
         <div class='box'>
           <h2>Performance summary</h2>
@@ -492,19 +492,6 @@ def report_periods_equity_only(
             </tbody>
           </table>
           <div class='small' style='padding:10px 12px;'>Tip: click headers to sort.</div>
-        </div>
-      </div>
-
-      <div class='card'>
-        <div class='box'>
-          <h2>Hyperparameters / modules</h2>
-          <div class='kv'>
-            <div class='mono'>{archetype}</div>
-            <div class='mono' style='margin-top:6px; color: var(--muted);'>Modules:</div>
-            <ul class='hyper'>
-              {hyper_items}
-            </ul>
-          </div>
         </div>
       </div>
     </div>
