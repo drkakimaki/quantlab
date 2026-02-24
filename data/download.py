@@ -30,6 +30,12 @@ from pathlib import Path
 from quantlab.data.dukascopy import build_daily_1s, iter_days, latest_utc_date
 from quantlab.data.resample import resample_dukascopy_1s_to_bars, resample_dukascopy_1s_to_ohlc
 
+# Anchor default paths to the workspace root (like the WebUI does).
+# This avoids accidental writes to e.g. quantlab/quantlab/data when running from
+# inside the quantlab/ folder.
+WORKSPACE = Path(__file__).resolve().parents[2]
+QUANTLAB = WORKSPACE / "quantlab"
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -41,12 +47,12 @@ def main() -> int:
     ap.add_argument("--start", type=dt.date.fromisoformat, default=None, help="Start date (YYYY-MM-DD)")
     ap.add_argument("--end", type=dt.date.fromisoformat, default=None, help="End date (YYYY-MM-DD)")
     ap.add_argument("--days", type=int, default=None, help="Download last N days (alternative to --start/--end)")
-    ap.add_argument("--cache-dir", type=Path, default=Path("quantlab/data/dukascopy_raw"), help="Raw tick cache")
-    ap.add_argument("--out-1s", type=Path, default=Path("quantlab/data/dukascopy_1s"), help="1s output dir")
-    ap.add_argument("--out-5m", type=Path, default=Path("quantlab/data/dukascopy_5m"), help="5m mid output dir")
-    ap.add_argument("--out-5m-ohlc", type=Path, default=Path("quantlab/data/dukascopy_5m_ohlc"), help="5m OHLC output dir")
-    ap.add_argument("--out-15m", type=Path, default=Path("quantlab/data/dukascopy_15m"), help="15m mid output dir")
-    ap.add_argument("--out-15m-ohlc", type=Path, default=Path("quantlab/data/dukascopy_15m_ohlc"), help="15m OHLC output dir")
+    ap.add_argument("--cache-dir", type=Path, default=QUANTLAB / "data" / "dukascopy_raw", help="Raw tick cache")
+    ap.add_argument("--out-1s", type=Path, default=QUANTLAB / "data" / "dukascopy_1s", help="1s output dir")
+    ap.add_argument("--out-5m", type=Path, default=QUANTLAB / "data" / "dukascopy_5m", help="5m mid output dir")
+    ap.add_argument("--out-5m-ohlc", type=Path, default=QUANTLAB / "data" / "dukascopy_5m_ohlc", help="5m OHLC output dir")
+    ap.add_argument("--out-15m", type=Path, default=QUANTLAB / "data" / "dukascopy_15m", help="15m mid output dir")
+    ap.add_argument("--out-15m-ohlc", type=Path, default=QUANTLAB / "data" / "dukascopy_15m_ohlc", help="15m OHLC output dir")
     ap.add_argument("--no-mid", action="store_true", help="Skip mid files (only OHLC)")
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing files")
     ap.add_argument("--max-days", type=int, default=None, help="Max days per run (for cron safety)")
@@ -72,7 +78,11 @@ def main() -> int:
     total_days = (end - start).days + 1
     
     if not args.quiet:
-        print(f"DOWNLOAD_START symbols={args.symbols} start={start} end={end} days={total_days}")
+        print(
+            "DOWNLOAD_START "
+            f"symbols={args.symbols} start={start} end={end} days={total_days} "
+            f"out_5m_ohlc={args.out_5m_ohlc} out_15m_ohlc={args.out_15m_ohlc}"
+        )
     
     errors = []
     
