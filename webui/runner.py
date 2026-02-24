@@ -434,76 +434,7 @@ def _generate_report(
     
     title = info.name
 
-    # If best_trend, enrich the title so the report can display module/hyperparam values.
-    if info.strategy_type == "best_trend" and isinstance(cfg, dict):
-        hp: list[str] = []
-        try:
-            t = cfg.get("trend", {}) or {}
-            if "fast" in t and "slow" in t:
-                hp.append(f"trend.fast={t.get('fast')}")
-                hp.append(f"trend.slow={t.get('slow')}")
-
-            htf = cfg.get("htf_confirm", {}) or {}
-            if htf:
-                hp.append(f"htf_confirm.rule={htf.get('rule')}")
-
-            ema = cfg.get("ema_sep", {}) or {}
-            if ema:
-                hp.append(f"ema_sep.fast={ema.get('ema_fast')}")
-                hp.append(f"ema_sep.slow={ema.get('ema_slow')}")
-                hp.append(f"ema_sep.sep_k={ema.get('sep_k')}")
-
-            nc = cfg.get("nochop", {}) or {}
-            if nc:
-                hp.append(f"nochop.ema={nc.get('ema')}")
-                hp.append(f"nochop.lookback={nc.get('lookback')}")
-                hp.append(f"nochop.min_closes={nc.get('min_closes')}")
-
-            corr = cfg.get("corr", {}) or {}
-            if corr:
-                hp.append(f"corr.logic={corr.get('logic')}")
-                xag = corr.get("xag", {}) or {}
-                if xag:
-                    hp.append(f"corr.xag.window={xag.get('window')}")
-                    hp.append(f"corr.xag.min_abs={xag.get('min_abs')}")
-                eur = corr.get("eur", {}) or {}
-                if eur:
-                    hp.append(f"corr.eur.window={eur.get('window')}")
-                    hp.append(f"corr.eur.min_abs={eur.get('min_abs')}")
-
-            sizing = cfg.get("sizing", {}) or {}
-            if sizing:
-                hp.append(f"sizing.one={sizing.get('confirm_size_one')}")
-                hp.append(f"sizing.both={sizing.get('confirm_size_both')}")
-
-            churn = cfg.get("churn", {}) or {}
-            if churn:
-                hp.append(f"churn.min_on={churn.get('min_on_bars')}")
-                hp.append(f"churn.cd={churn.get('cooldown_bars')}")
-
-            season = cfg.get("seasonality", {}) or {}
-            if season:
-                mc = season.get("month_size_cap")
-                if isinstance(mc, dict) and mc:
-                    # compact form like 6:1
-                    parts = ",".join(f"{k}:{v}" for k, v in sorted(mc.items(), key=lambda kv: int(kv[0])))
-                    hp.append(f"seasonality.cap={parts}")
-
-            costs = cfg.get("costs", {}) or {}
-            if costs:
-                hp.append(f"costs.fee={costs.get('fee_per_lot')}")
-                hp.append(f"costs.spread={costs.get('spread_per_lot')}")
-
-            risk = cfg.get("risk", {}) or {}
-            if risk:
-                hp.append(f"risk.shock_abs={risk.get('shock_exit_abs_ret')}")
-
-        except Exception:
-            hp = []
-
-        if hp:
-            title = title + " + " + " + ".join(hp)
-    
+    # (removed) legacy title enrichment: configs are pipeline-based; keep titles stable.
     score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or []) if isinstance(cfg, dict) else []
 
     report_periods_equity_only(
