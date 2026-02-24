@@ -244,7 +244,7 @@ def report_periods_equity_only(
             f"<td class='num mono'>{pct(r.pnl)}</td>"
             f"<td class='num mono'>{pct(r.max_drawdown)}</td>"
             f"<td class='num mono'>{num(r.sharpe)}</td>"
-            f"<td class='num mono'>{num(r.sharpe_ci_lo)}…{num(r.sharpe_ci_hi)}</td>"
+            f"<td class='num mono'>{num(r.sharpe_ci_lo)}/{num(r.sharpe_ci_hi)}</td>"
             f"<td class='num mono'>{pct(r.win_rate)}</td>"
             f"<td class='num mono'>{pf(r.profit_factor)}</td>"
             f"<td class='num mono'>{pct(r.avg_win)}</td>"
@@ -401,6 +401,7 @@ def report_periods_equity_only(
 
     table {{ border-collapse: separate; border-spacing: 0; width: 100%; }}
     th, td {{ border-bottom: 1px solid var(--border); padding: 10px 12px; text-align: left; }}
+    th.num {{ text-align: right; }}
     th {{
       font-size: 12px;
       color: var(--muted);
