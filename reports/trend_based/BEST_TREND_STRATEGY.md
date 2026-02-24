@@ -72,7 +72,7 @@ Source of truth: `configs/trend_based/current.yaml` → `pipeline:`
 
 3. **time_filter** — force-flat allow-mask
    - params: `{}`
-   - mask is built by the runner from `time_filter:` in `configs/trend_based/current.yaml`.
+   - mask is built by the runner from `time_filter:` in `configs/trend_based/current.yaml` (includes FOMC + month blockouts like flat June).
 
 4. **ema_strength_sizing** — size up on strong separation (segment-held)
    - params: `ema_fast=40`, `ema_slow=300`, `atr_n=20`, `strong_k=0.20`, `size_base=1.0`, `size_strong=2.0`

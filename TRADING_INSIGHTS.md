@@ -35,8 +35,8 @@ What this is *not*:
 
 ### Current best_trend headline metrics (XAUUSD)
 (from `rnd run` / canonical config)
-- 2020-2022: PnL **45.40%**, MaxDD **-17.20%**, Sharpe **0.62**
-- 2023-2025: PnL **359.82%**, MaxDD **-12.85%**, Sharpe **2.18**
+- 2020-2022: PnL **51.50%**, MaxDD **-16.33%**, Sharpe **0.70**
+- 2023-2025: PnL **366.20%**, MaxDD **-11.98%**, Sharpe **2.25**
 - 2026 (HOLDOUT): PnL **130.96%**, MaxDD **-16.92%**, Sharpe **4.77**
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
@@ -104,7 +104,7 @@ Canonical pipeline knobs (pipeline elements only):
 
 ### Behavioral fingerprints (trade breakdown)
 - **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
-  - Canonical mitigation: **force-flat June** via `time_filter.months.block: [6]` (not just sizing).
+  - Canonical mitigation: **force-flat June** via `time_filter.months.block: [6]`.
 - **Duration-driven edge:**
   - Very long holds pay: **97+ bars** are strongly positive.
   - The toxic zone is **13–48 bars** (strongly negative).
