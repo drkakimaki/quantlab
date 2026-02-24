@@ -17,7 +17,7 @@ from ..strategies import (
     TrendStrategyWithGates,
     BacktestConfig,
 )
-from ..data.resample import load_dukascopy_ohlc
+from ..data.loaders import load_dukascopy_ohlc
 from ..time_filter import (
     EventWindow,
     build_allow_mask_from_events,

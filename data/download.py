@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 from quantlab.data.dukascopy import build_daily_1s, iter_days, latest_utc_date
-from quantlab.data.resample import resample_dukascopy_1s_to_bars, resample_dukascopy_1s_to_ohlc
+from quantlab.data.resampling import resample_dukascopy_1s_to_bars, resample_dukascopy_1s_to_ohlc
 
 # Anchor default paths to the workspace root (like the WebUI does).
 # This avoids accidental writes to e.g. quantlab/quantlab/data when running from

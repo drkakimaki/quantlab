@@ -17,7 +17,7 @@ import yaml
 
 from .base import StrategyBase, BacktestResult, BacktestConfig
 from ..engine.backtest import backtest_positions_account_margin, prices_to_returns
-from ..data.resample import load_dukascopy_ohlc
+from ..data.loaders import load_dukascopy_ohlc
 from ..time_filter import EventWindow, build_allow_mask_from_events
 
 
