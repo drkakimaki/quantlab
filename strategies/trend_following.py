@@ -172,98 +172,13 @@ class TrendStrategyWithGates(StrategyBase):
         pipeline = cfg.get("pipeline")
         specs: list[dict]
 
-        if isinstance(pipeline, list) and pipeline:
-            specs = [dict(x) for x in pipeline]
-        else:
-            # Legacy config translation (canonical order).
-            specs = []
+        if not (isinstance(pipeline, list) and pipeline):
+            raise ValueError(
+                "Legacy config blocks are no longer supported. "
+                "Provide a canonical `pipeline:` list of {gate, params} entries."
+            )
 
-            if cfg.get("htf_confirm"):
-                specs.append({"gate": "htf_confirm", "params": {"fast": fast, "slow": slow}})
-
-            if cfg.get("ema_sep"):
-                specs.append({"gate": "ema_sep", "params": dict(cfg.get("ema_sep") or {})})
-
-            nc = cfg.get("nochop") or {}
-            if nc:
-                # Entry gate
-                params = dict(nc)
-                # Removed: exit_bad_bars semantics (was a separate post gate).
-                params.pop("exit_bad_bars", None)
-                specs.append({"gate": "nochop", "params": params})
-
-            if cfg.get("corr"):
-                corr_cfg = dict(cfg.get("corr") or {})
-                xag = dict(corr_cfg.get("xag") or {})
-                eur = dict(corr_cfg.get("eur") or {})
-                sizing_cfg = dict(cfg.get("sizing") or {})
-                params = {
-                    "logic": corr_cfg.get("logic", "or"),
-                    "xag_window": xag.get("window", 40),
-                    "xag_min_abs": xag.get("min_abs", 0.10),
-                    "xag_flip_lookback": xag.get("flip_lookback", 50),
-                    "xag_max_flips": xag.get("max_flips", 0),
-                    "eur_window": eur.get("window", 75),
-                    "eur_min_abs": eur.get("min_abs", 0.10),
-                    "eur_flip_lookback": eur.get("flip_lookback", 75),
-                    "eur_max_flips": eur.get("max_flips", 5),
-                    "confirm_size_one": sizing_cfg.get("confirm_size_one", 1.0),
-                    "confirm_size_both": sizing_cfg.get("confirm_size_both", 2.0),
-                }
-                specs.append({"gate": "corr", "params": params})
-
-            if cfg.get("time_filter") or allow_mask is not None:
-                specs.append({"gate": "time_filter", "params": {}})
-
-            es_cfg = cfg.get("ema_strength_sizing", {}) or {}
-            if es_cfg:
-                base_ema = cfg.get("ema_sep", {}) or {}
-                sizing_cfg = cfg.get("sizing", {}) or {}
-                params = {
-                    "ema_fast": int(es_cfg.get("ema_fast", base_ema.get("ema_fast", 40))),
-                    "ema_slow": int(es_cfg.get("ema_slow", base_ema.get("ema_slow", 300))),
-                    "atr_n": int(es_cfg.get("atr_n", base_ema.get("atr_n", 20))),
-                    "strong_k": float(es_cfg.get("strong_k", 0.10)),
-                    "size_base": float(sizing_cfg.get("confirm_size_one", 1.0)),
-                    "size_strong": float(sizing_cfg.get("confirm_size_both", 2.0)),
-                }
-                specs.append({"gate": "ema_strength_sizing", "params": params})
-
-            season_cfg = cfg.get("seasonality", {}) or {}
-            if isinstance(season_cfg.get("month_size_cap"), dict) and season_cfg.get("month_size_cap"):
-                specs.append({"gate": "seasonality_cap", "params": {"month_size_cap": season_cfg.get("month_size_cap")}})
-
-            churn_cfg = cfg.get("churn", {}) or {}
-            if churn_cfg:
-                specs.append({"gate": "churn", "params": dict(churn_cfg)})
-
-            early_cfg = cfg.get("mid_loss_limiter_early", {}) or {}
-            if early_cfg:
-                specs.append({"gate": "mid_loss_limiter", "params": {
-                    "min_bars": int(early_cfg.get("min_bars", 7)),
-                    "max_bars": int(early_cfg.get("max_bars", 12)),
-                    "stop_ret": float(early_cfg.get("stop_ret", -0.006)),
-                }})
-
-            mid_loss_cfg = cfg.get("mid_loss_limiter", {}) or {}
-            if mid_loss_cfg:
-                specs.append({"gate": "mid_loss_limiter", "params": dict(mid_loss_cfg)})
-
-            ts_cfg = cfg.get("time_stop", {}) or {}
-            if ts_cfg:
-                specs.append({"gate": "no_recovery_exit", "params": dict(ts_cfg)})
-
-            pm_cfg = cfg.get("profit_milestone", {}) or {}
-            if pm_cfg:
-                specs.append({"gate": "profit_milestone", "params": dict(pm_cfg)})
-
-            rm_cfg = cfg.get("rolling_max_exit", {}) or {}
-            if rm_cfg:
-                specs.append({"gate": "rolling_max_exit", "params": dict(rm_cfg)})
-
-            risk_cfg = cfg.get("risk", {}) or {}
-            if risk_cfg:
-                specs.append({"gate": "shock_exit", "params": dict(risk_cfg)})
+        specs = [dict(x) for x in pipeline]
 
         # Instantiate gates
         gates: list[SignalGate] = []

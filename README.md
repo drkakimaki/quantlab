@@ -109,18 +109,16 @@ Gate pipeline config:
 - `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
 - Gate is ON if it appears in `pipeline:`.
 - Gate order is the list order.
+- Legacy flat config blocks are **not supported** (use `pipeline:`).
 
 ### Config validation (Pydantic)
 To avoid silent misconfig (typos / wrong param names), Quantlab validates the canonical config schema (including *fully typed* gate params).
+The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail fast on unknown keys.
 
 Validate a YAML file directly:
 ```bash
 .venv/bin/python -m quantlab.config.schema quantlab/configs/trend_based/current.yaml
 ```
-
-Notes:
-- The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail fast on unknown keys.
-- The validator also checks that the schema covers every gate registered in `quantlab.strategies.gates`.
 
 Registering new gates:
 - Add a new gate class under `quantlab/strategies/gates/` and register it:
