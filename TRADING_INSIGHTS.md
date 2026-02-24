@@ -57,7 +57,7 @@ Canonical pipeline knobs (pipeline elements only):
 | `nochop` | `ema`, `lookback`, `min_closes`, `entry_held` | HTF NoChop regime filter. |
 | `time_filter` | *(none in pipeline)* | Applies a force-flat allow-mask built by the runner (see `time_filter:` config in `current.yaml`). |
 | `ema_strength_sizing` | `strong_k` | Segment-held size-up on strong EMA separation. |
-| `seasonality_cap` | `month_size_cap` | Month-based size caps (deprecated for June; canonical now force-flats June via time_filter). |
+| `seasonality_cap` | `month_size_cap` | Month-based size caps (not used in canonical; replaced by June force-flat in `time_filter`). |
 | `churn` | `min_on_bars`, `cooldown_bars` | Entry debounce + re-entry cooldown. |
 | `mid_loss_limiter` | `min_bars`, `max_bars`, `stop_ret` | Kill mid-duration losers (targets 13–48 bar toxic zone). |
 | `no_recovery_exit` | `bar_n`, `min_ret` | Exit if trade hasn’t recovered by N bars (no-recovery). |
@@ -101,6 +101,9 @@ Canonical pipeline knobs (pipeline elements only):
   - Source: `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - Econ calendar expansion (CPI/NFP): implemented infra + wiring, but **disabled in canonical** for now (did not improve train score in quick sweeps).
   - Source: `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/`
+- June is structurally weak; best mitigation was to **force-flat the entire month** (not just cap size).
+  - Evidence: `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/`
+  - Implementation: `time_filter.months.block: [6]` in `current.yaml`
 
 ### Behavioral fingerprints (trade breakdown)
 - **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
@@ -127,6 +130,7 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 ### Promotion / hyperparam work
 - `reports/trend_based/decisions/2026-02-14_filters_hyperparam_search/`
 - `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/` (promotion: removed redundant HTF confirm)
+- `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/` (promotion: June force-flat via time_filter)
 - `reports/trend_based/decisions/2026-02-14_corr_hyperparam_search/` (historical; corr gate now OFF)
 - `reports/trend_based/decisions/2026-02-14_fomc_filter_sweep/`
 - `reports/trend_based/decisions/2026-02-14_shock_exits/`
