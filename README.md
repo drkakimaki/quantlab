@@ -142,11 +142,7 @@ pipeline:
 
 ## Reports
 
-### Canonical best_trend snapshot (XAUUSD)
-(from `reports/trend_based/best_trend.html`)
-- 2020–2022: PnL **51.50%**, vs B&H **+31.52%**, MaxDD **-16.33%**, Sharpe **0.70** (CI **-0.29/1.57**)
-- 2023–2025: PnL **366.20%**, vs B&H **+229.85%**, MaxDD **-11.98%**, Sharpe **2.25** (CI **1.28/3.13**)
-- 2026 (HOLDOUT): PnL **172.07%**, vs B&H **+151.07%**, MaxDD **-16.92%**, Sharpe **5.40** (CI **1.48/8.56**)
+(Canonical performance snapshot lives in `TRADING_INSIGHTS.md`.)
 
 ### HTML generation code
 - `quantlab/reporting/generate_bt_report.py` (multi-period single-file equity/performance HTML)
