@@ -138,7 +138,8 @@ Token hygiene: only open/read older decision bundles when explicitly discussing 
 - `reports/trend_based/decisions/2026-02-23_exits_sensitivity_v1/`
 
 ### Risk research
-(TODO: add/restore pointers to the relevant decision bundles if/when they’re re-introduced.)
+- `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
+- `reports/trend_based/decisions/2026-02-15_loss_drawdown_deepdive/`
 
 ### Correctness / audits
-(TODO: add/restore pointers to the relevant decision bundles if/when they’re re-introduced.)
+- `reports/trend_based/decisions/2026-02-14_lookahead_audit/`
