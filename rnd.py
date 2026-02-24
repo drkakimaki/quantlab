@@ -382,6 +382,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         p["mode"] = args.mode
         cfg["periods"] = p
 
+    from .config.schema import validate_config_dict
+
+    cfg = validate_config_dict(cfg)
+
     period_dfs = _run_best_trend_periods(cfg)
 
     score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
@@ -476,6 +480,10 @@ def cmd_sweep(args: argparse.Namespace) -> int:
         p["mode"] = mode
         base_cfg["periods"] = p
 
+    from .config.schema import validate_config_dict
+
+    base_cfg = validate_config_dict(base_cfg)
+
     dd_cap = float(sweep.get("dd_cap_percent", args.dd_cap))
     top_k = int(sweep.get("top_k", 10))
     initial_capital = float(sweep.get("initial_capital", 1000.0))
@@ -529,10 +537,21 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     prepared = _prepare_best_trend_inputs(base_cfg)
     log(f"Prepared {len(prepared)} periods. Starting {len(combos)} candidates...", flush=True)
 
+    from pydantic import ValidationError
+
+    skipped_invalid = 0
+
     for idx, combo in enumerate(combos, 1):
         cfg = copy.deepcopy(base_cfg)
         for k, v in zip(keys, combo, strict=True):
             _set_in(cfg, k, v)
+
+        # Validate mutated config (fail-fast on invalid candidates).
+        try:
+            cfg = validate_config_dict(cfg)
+        except ValidationError:
+            skipped_invalid += 1
+            continue
 
         period_dfs = _run_best_trend_periods(cfg, prepared=prepared)
         score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
@@ -564,6 +583,9 @@ def cmd_sweep(args: argparse.Namespace) -> int:
 
         if args.progress and (idx % int(args.progress) == 0):
             log(f"{idx}/{len(combos)} done...", flush=True)
+
+    if skipped_invalid:
+        log(f"Skipped {skipped_invalid} invalid candidates (schema validation)", flush=True)
 
     df = pd.DataFrame(rows)
     df = df.sort_values(by=["ok", "maxdd_violation", "sum_pnl"], ascending=[False, True, False])

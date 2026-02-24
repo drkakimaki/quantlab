@@ -1,0 +1,37 @@
+{
+  "base": "configs/trend_based/current.yaml",
+  "dd_cap_percent": 20.0,
+  "grid": {
+    "pipeline.0.params.atr_n": [
+      14,
+      20,
+      28
+    ],
+    "pipeline.0.params.ema_fast": [
+      30,
+      40,
+      50
+    ],
+    "pipeline.0.params.ema_slow": [
+      200,
+      300,
+      400
+    ],
+    "pipeline.0.params.sep_k": [
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.07
+    ]
+  },
+  "kind": "sweep",
+  "mode": "three_block",
+  "n_candidates": 135,
+  "objective": "sum_pnl subject_to worst_maxdd_cap",
+  "score_exclude": [
+    "2026"
+  ],
+  "sweep_kind": "grid",
+  "sweep_path": "configs/trend_based/sweeps_ema_sep.yaml"
+}

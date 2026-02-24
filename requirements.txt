@@ -15,6 +15,9 @@ matplotlib
 seaborn
 plotly
 
+# Config validation
+pydantic>=2.0
+
 # Research UX
 jupyterlab
 ipykernel

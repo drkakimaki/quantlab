@@ -1,0 +1,41 @@
+symbol: XAUUSD
+corr_symbol: XAGUSD
+corr2_symbol: EURUSD
+roots:
+  root_5m_ohlc: quantlab/data/dukascopy_5m_ohlc
+  root_15m_ohlc: quantlab/data/dukascopy_15m_ohlc
+periods:
+  mode: three_block
+  score_exclude:
+  - '2026'
+  three_block:
+    p1:
+      name: 2020-2022
+      start: '2020-01-01'
+      end: '2022-12-31'
+    p2:
+      name: 2023-2025
+      start: '2023-01-01'
+      end: '2025-12-31'
+    p3:
+      name: '2026'
+      start: '2026-01-01'
+      end: today
+costs:
+  fee_per_lot: 3.5
+  spread_per_lot: 3.5
+trend:
+  fast: 30
+  slow: 75
+time_filter:
+  kind: fomc
+  fomc:
+    days_csv: quantlab/data/econ_calendar/fomc_decision_days.csv
+    utc_hhmm: '19:00'
+    pre_hours: 2.0
+    post_hours: 0.5
+pipeline:
+  '5':
+    params:
+      min_on_bars: 2
+      cooldown_bars: 4

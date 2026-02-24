@@ -74,7 +74,7 @@ Canonical pipeline knobs (pipeline elements only):
 - **Near-parameter ensembling** can be more robust than chasing a single best setting (use sparingly).
 
 ### Workflow / process lessons (from this session)
-- **Always keep a strong reference config** (we archived `configs/trend_based/reference/pre_htf_drop.yaml`) to sanity-check that changes aren’t just in-sample fitting.
+- **Always keep a strong reference configs** (`configs/trend_based/reference/`) to sanity-check that changes aren’t just in-sample fitting.
 
 ### Evaluation mindset
 - **Regime bias is real; we are intentionally long-only:** later years appear structurally bullish, so this project currently optimizes a **long-only trend** hypothesis (not a symmetric long/short system).

@@ -193,6 +193,11 @@ def run_backtest(
         with open(cfg_path) as f:
             cfg = yaml.safe_load(f) or {}
 
+        # Fail fast on typos / unknown keys.
+        from ..config.schema import validate_config_dict
+
+        cfg = validate_config_dict(cfg)
+
         # Optional breakdown override from UI
         if breakdown in {"three_block", "yearly"}:
             cfg = dict(cfg)
