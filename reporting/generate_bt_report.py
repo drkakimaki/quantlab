@@ -27,6 +27,8 @@ class PeriodRow:
     sharpe: float
     sharpe_ci_lo: float
     sharpe_ci_hi: float
+    bh_pnl: float
+    excess_pnl: float
     win_rate: float
     profit_factor: float
     avg_win: float
@@ -79,6 +81,7 @@ def report_periods_equity_only(
     initial_capital: float | dict[str, float],
     returns_col: str = "returns_net",
     equity_col: str = "equity",
+    baseline_periods: dict[str, pd.DataFrame] | None = None,
     n_trades: dict[str, int] | None = None,
     win_rate: dict[str, float] | None = None,
     score_exclude: list[str] | set[str] | None = None,
@@ -112,6 +115,8 @@ def report_periods_equity_only(
                     sharpe=float("nan"),
                     sharpe_ci_lo=float("nan"),
                     sharpe_ci_hi=float("nan"),
+                    bh_pnl=float("nan"),
+                    excess_pnl=float("nan"),
                     win_rate=float("nan"),
                     profit_factor=float("nan"),
                     avg_win=float("nan"),
@@ -140,6 +145,18 @@ def report_periods_equity_only(
         # Percent return for the period (relative to starting capital)
         pnl = (float(eq.iloc[-1]) / cap0 - 1.0) * 100.0
 
+        bh_pnl = float("nan")
+        excess_pnl = float("nan")
+        if baseline_periods is not None and name in baseline_periods:
+            bh = baseline_periods.get(name)
+            if bh is not None and len(bh) and equity_col in bh.columns:
+                bh_eq = bh[equity_col].astype(float)
+                bh_cap0 = cap0
+                if bh_cap0 <= 0:
+                    bh_cap0 = float(bh_eq.iloc[0]) if len(bh_eq) else 1.0
+                bh_pnl = (float(bh_eq.iloc[-1]) / bh_cap0 - 1.0) * 100.0
+                excess_pnl = pnl - bh_pnl
+
         peak = eq.cummax()
         dd = (eq / peak) - 1.0
         max_dd = float(dd.min()) * 100.0
@@ -166,6 +183,8 @@ def report_periods_equity_only(
                 sharpe=s,
                 sharpe_ci_lo=s_lo,
                 sharpe_ci_hi=s_hi,
+                bh_pnl=bh_pnl,
+                excess_pnl=excess_pnl,
                 win_rate=wr,
                 profit_factor=pf,
                 avg_win=avg_win,
@@ -245,6 +264,8 @@ def report_periods_equity_only(
             f"<td class='num mono'>{pct(r.max_drawdown)}</td>"
             f"<td class='num mono'>{num(r.sharpe)}</td>"
             f"<td class='num mono'>{num(r.sharpe_ci_lo)}/{num(r.sharpe_ci_hi)}</td>"
+            f"<td class='num mono'>{pct(r.bh_pnl)}</td>"
+            f"<td class='num mono'>{pct(r.excess_pnl)}</td>"
             f"<td class='num mono'>{pct(r.win_rate)}</td>"
             f"<td class='num mono'>{pf(r.profit_factor)}</td>"
             f"<td class='num mono'>{pct(r.avg_win)}</td>"
@@ -481,6 +502,8 @@ def report_periods_equity_only(
                 <th class='num' data-sort='num'>Max DD</th>
                 <th class='num' data-sort='num'>Sharpe</th>
                 <th class='num' data-sort='text'>Sharpe CI</th>
+                <th class='num' data-sort='num'>B&H PnL</th>
+                <th class='num' data-sort='num'>Excess vs B&H</th>
                 <th class='num' data-sort='num'>Win Rate</th>
                 <th class='num' data-sort='num'>Profit Factor</th>
                 <th class='num' data-sort='num'>Avg Win</th>

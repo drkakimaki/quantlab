@@ -238,7 +238,12 @@ def run_backtest(
         report_path = get_report_path(strategy_id, variant=variant, kind="equity") or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
-        final_title = _generate_report(results, info, report_path, cfg=cfg)
+        baseline_results = None
+        if info.strategy_type == "best_trend":
+            # Buy & Hold baseline over the same periods (for excess return vs baseline).
+            baseline_results = _run_buy_and_hold(periods, config)
+
+        final_title = _generate_report(results, info, report_path, cfg=cfg, baseline_results=baseline_results)
 
         # Also generate trade breakdown report (convenience for debugging / diagnosis)
         trades_path = get_report_path(strategy_id, variant=variant, kind="trades")
@@ -416,6 +421,7 @@ def _generate_report(
     report_path: Path,
     *,
     cfg: dict | None = None,
+    baseline_results: dict[str, tuple[pd.DataFrame, float, int]] | None = None,
 ) -> str:
     """Generate HTML report.
 
@@ -437,8 +443,11 @@ def _generate_report(
     # (removed) legacy title enrichment: configs are pipeline-based; keep titles stable.
     score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or []) if isinstance(cfg, dict) else []
 
+    baseline_periods = {name: df for name, (df, _, _) in (baseline_results or {}).items()} if baseline_results else None
+
     report_periods_equity_only(
         periods=periods,
+        baseline_periods=baseline_periods,
         out_path=report_path,
         title=title,
         initial_capital=initial_capital,
