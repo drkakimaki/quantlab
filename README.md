@@ -10,7 +10,7 @@ quantlab/
 ├── engine/                  # Backtest engine + metrics
 │   ├── backtest.py
 │   ├── metrics.py
-│   └── trades.py            # Canonical trade log
+│   └── trades.py            
 ├── strategies/              # Strategy classes + gates
 │   ├── base.py              # StrategyBase, BacktestResult, BacktestConfig
 │   ├── buy_and_hold.py
@@ -25,9 +25,8 @@ quantlab/
 │   └── validate.py          # CLI: check integrity
 ├── configs/
 │   └── trend_based/
+│       ├── reference/       # Archived reference configs
 │       ├── current.yaml     # Canonical config
-│       ├── reference/       # Archived reference configs (robustness baselines)
-│       │   └── pre_htf_drop.yaml
 │       └── (sweeps/experiments)
 ├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
@@ -66,19 +65,6 @@ quantlab/
 .venv/bin/python -m quantlab.rnd sweep --sweep quantlab/configs/trend_based/sweeps.yaml --decision-slug sweep_fast_slow
 ```
 
-## Strategy Classes
-
-- `TrendStrategyWithGates`: main strategy (SMA trend + configurable gate pipeline from YAML).
-- Baselines: `BuyAndHoldStrategy`, `TrendStrategy` (simple SMA), `MeanReversionStrategy`.
-
-## Composable Gates
-
-`TrendStrategyWithGates` is a gate pipeline applied on top of a base trend signal.
-
-Meta-order (recommended):
-
-`base signal → entry filters → time filter → sizing overlays → trade frequency control → post-entry exits`
-
 ## Data Management
 
 ```bash
@@ -101,6 +87,19 @@ Meta-order (recommended):
 | `dukascopy_15m` | ts, bid, ask, mid, spread |
 | `dukascopy_15m_ohlc` | ts, open, high, low, close |
 
+## Strategy Classes
+
+- `TrendStrategyWithGates`: main strategy (SMA trend + configurable gate pipeline from YAML).
+- Baselines: `BuyAndHoldStrategy`, `TrendStrategy` (simple SMA), `MeanReversionStrategy`.
+
+## Composable Gates
+
+`TrendStrategyWithGates` is a gate pipeline applied on top of a base trend signal.
+
+Meta-order (recommended):
+
+`base signal → entry filters → time filter → sizing overlays → trade frequency control → post-entry exits`
+
 ## Configuration
 
 Canonical config (tracked):
@@ -110,6 +109,18 @@ Gate pipeline config:
 - `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
 - Gate is ON if it appears in `pipeline:`.
 - Gate order is the list order.
+
+### Config validation (Pydantic)
+To avoid silent misconfig (typos / wrong param names), Quantlab validates the canonical config schema (including *fully typed* gate params).
+
+Validate a YAML file directly:
+```bash
+.venv/bin/python -m quantlab.config.schema quantlab/configs/trend_based/current.yaml
+```
+
+Notes:
+- The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail fast on unknown keys.
+- The validator also checks that the schema covers every gate registered in `quantlab.strategies.gates`.
 
 Registering new gates:
 - Add a new gate class under `quantlab/strategies/gates/` and register it:
@@ -132,29 +143,6 @@ pipeline:
   - gate: my_gate
     params: {}
 ```
-
-## Development
-
-- **API Key:** FRED_API_KEY for economic calendar
-- **Design:** Strategy classes with composable gates, single backtest engine
-
-### Regression & parity (mandatory when refactoring execution semantics)
-
-When touching anything that can alter signals/execution (gates, costs, time-filtering, return math, trade extraction), regress on **position + equity series**, not just headline metrics.
-
-Golden series regression (best_trend 2024–2025):
-
-```bash
-# run regression
-.venv/bin/python -m pytest -q tests/regression/test_best_trend_2024_2025_series.py
-
-# update golden (ONLY when the change is intentional)
-.venv/bin/python tests/regression/update_golden_best_trend_2024_2025.py
-```
-
-Notes:
-- Golden artifacts live under `tests/regression/golden/`.
-- We bias toward CLI/WebUI parity; the runner intentionally reuses WebUI loaders.
 
 ## Reports
 
@@ -181,3 +169,31 @@ quantlab/reports/
 │           ├── notes.json
 │           └── raw/
 ```
+
+
+## Development
+
+- **API Key:** FRED_API_KEY for economic calendar
+- **Design:** Strategy classes with composable gates, single backtest engine
+
+### Regression & parity (mandatory when refactoring execution semantics)
+
+When touching anything that can alter signals/execution (gates, costs, time-filtering, return math, trade extraction), regress on **position + equity series**, not just headline metrics.
+
+Golden series regression (best_trend 2024–2025):
+
+```bash
+# run regression
+.venv/bin/python -m pytest -q tests/regression/test_best_trend_2024_2025_series.py
+
+# update golden (ONLY when the change is intentional)
+.venv/bin/python tests/regression/update_golden_best_trend_2024_2025.py
+```
+
+Notes:
+- Golden artifacts live under `tests/regression/golden/`.
+- We bias toward CLI/WebUI parity; the runner intentionally reuses WebUI loaders.
+
+## Requirements
+- Runtime: `quantlab/requirements.txt`
+- Dev/test: `quantlab/requirements-dev.txt`
