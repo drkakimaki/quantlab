@@ -24,7 +24,7 @@ from ..time_filter import (
     build_allow_mask_from_econ_calendar,
     build_allow_mask_from_months,
 )
-from .. import report_periods_equity_only
+from .. import report_periods_equity_only, report_robustness
 from ..reporting.generate_trades_report import report_periods_trades_html
 from .periods import build_periods
 
@@ -237,7 +237,8 @@ def run_backtest(
         
         # Generate report (variant naming)
         mode = (cfg.get("periods", {}) or {}).get("mode")
-        variant = "yearly" if mode == "yearly" else None
+        # We repurpose yearly breakdown as a robustness-style report surface.
+        variant = "robustness" if mode == "yearly" else None
 
         report_path = get_report_path(strategy_id, variant=variant, kind="equity") or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -449,7 +450,10 @@ def _generate_report(
 
     baseline_periods = {name: df for name, (df, _, _) in (baseline_results or {}).items()} if baseline_results else None
 
-    report_periods_equity_only(
+    mode = (cfg.get("periods", {}) or {}).get("mode") if isinstance(cfg, dict) else None
+    report_fn = report_robustness if (mode == "yearly") else report_periods_equity_only
+
+    report_fn(
         periods=periods,
         baseline_periods=baseline_periods,
         out_path=report_path,
@@ -484,8 +488,12 @@ def get_report_path(strategy_id: str, *, variant: str | None = None, kind: str =
     if kind.strip().lower() in {"trades", "trade", "trade_breakdown"}:
         base = base.with_name(base.stem + "_trades" + base.suffix)
 
+    if variant in {"robustness", "r"}:
+        return base.with_name(base.stem + "_robustness" + base.suffix)
+
     if variant in {"yearly", "y"}:
-        return base.with_name(base.stem + "_y" + base.suffix)
+        # Backward-compat alias (shouldn't be used by new UI code)
+        return base.with_name(base.stem + "_robustness" + base.suffix)
 
     return base
 

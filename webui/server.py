@@ -48,7 +48,7 @@ class BacktestHandler(BaseHTTPRequestHandler):
         strategy_id = parsed.path.split("/")[-1]
         qs = urllib.parse.parse_qs(parsed.query)
         mode = (qs.get("mode", [""])[0] or "").strip().lower()
-        variant = "yearly" if mode in {"yearly", "y"} else None
+        variant = "robustness" if mode in {"yearly", "y", "robustness", "r"} else None
 
         path = get_report_path(strategy_id, variant=variant, kind=kind)
 
@@ -86,7 +86,7 @@ class BacktestHandler(BaseHTTPRequestHandler):
             record_executions=record_exec,
         )
         # Point the user to the correct report variant
-        if report_path.name.endswith("_y" + report_path.suffix):
+        if report_path.name.endswith("_robustness" + report_path.suffix) or report_path.name.endswith("_y" + report_path.suffix):
             report_url = f"/report/{strategy_id}?mode=yearly"
         else:
             report_url = f"/report/{strategy_id}"

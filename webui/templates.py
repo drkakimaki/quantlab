@@ -78,13 +78,13 @@ def _render_existing_reports(strategies: dict) -> str:
                 url_t = f"/trades/{sid}"
                 links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades (P)</a>')
 
-            if report_exists(sid, variant="yearly"):
+            if report_exists(sid, variant="robustness"):
                 url_y = f"/report/{sid}?mode=yearly"
-                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Equity (Y)</a>')
+                links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Robustness</a>')
 
-            if report_exists(sid, variant="yearly", kind="trades"):
+            if report_exists(sid, variant="robustness", kind="trades"):
                 url_ty = f"/trades/{sid}?mode=yearly"
-                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Trades (Y)</a>')
+                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Robustness trades</a>')
 
             items.append(
                 f'<div class="strategy-item">'
@@ -288,7 +288,7 @@ HTML_TEMPLATE = """<!doctype html>
           <label for="breakdown">Time setting</label>
           <select name="breakdown" id="breakdown">
             <option value="three_block">3 blocks (20–22 / 23–25 / 26 holdout)</option>
-            <option value="yearly">Yearly (20–25 / 26 holdout)</option>
+            <option value="yearly">Robustness (yearly breakdown)</option>
           </select>
 
           <!-- record_executions checkbox removed (trade report is always generated) -->
