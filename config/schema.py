@@ -105,7 +105,7 @@ class TimeFilterMonths(_ForbidExtra):
 
 
 class TimeFilter(_ForbidExtra):
-    kind: Literal["fomc", "econ_calendar"] = "fomc"
+    kind: Literal["fomc", "econ_calendar", "months"] = "fomc"
     fomc: TimeFilterFOMC | None = None
     econ_calendar: TimeFilterEconCalendar | None = None
     months: TimeFilterMonths | None = None

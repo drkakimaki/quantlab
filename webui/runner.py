@@ -121,19 +121,23 @@ def load_time_filter_mask(
     Supported kinds:
     - fomc
     - econ_calendar
+    - months (months-only force-flat; no event windows)
     """
     tf = cfg.get("time_filter", {}) or {}
     kind = (tf.get("kind") or "fomc").strip().lower()
+
+    # Optional month blocking overlay (force-flat semantics).
+    months_cfg = tf.get("months", {}) or {}
+    block_months = months_cfg.get("block") or []
+    m_mask = build_allow_mask_from_months(index, block=block_months)
+
+    if kind == "months":
+        return pd.Series(m_mask, index=index).astype(bool)
 
     if kind == "fomc":
         fomc_cfg = tf.get("fomc", {}) or {}
         days_csv = fomc_cfg.get("days_csv", "quantlab/data/econ_calendar/fomc_decision_days.csv")
         mask = load_fomc_mask(index, start, end, workspace / str(days_csv), fomc_cfg)
-
-        # Optional month blocking overlay (force-flat semantics).
-        months_cfg = tf.get("months", {}) or {}
-        block_months = months_cfg.get("block") or []
-        m_mask = build_allow_mask_from_months(index, block=block_months)
 
         if mask is None:
             return m_mask
