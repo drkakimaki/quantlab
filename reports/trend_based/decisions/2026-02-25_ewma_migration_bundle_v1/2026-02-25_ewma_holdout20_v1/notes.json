@@ -1,0 +1,49 @@
+{
+  "base": "configs/trend_based/ewma_holdout20_base.yaml",
+  "dd_cap_percent": 20.0,
+  "grid": {
+    "pipeline.0.params.sep_k": [
+      0.075,
+      0.08,
+      0.085
+    ],
+    "pipeline.1.params.lookback": [
+      40,
+      45,
+      50
+    ],
+    "pipeline.1.params.min_closes": [
+      20,
+      25
+    ],
+    "pipeline.4.params.cooldown_bars": [
+      8,
+      10,
+      12
+    ],
+    "pipeline.4.params.min_on_bars": [
+      3,
+      4
+    ],
+    "trend.fast": [
+      25,
+      28,
+      30,
+      32,
+      35
+    ],
+    "trend.slow": [
+      80,
+      90,
+      100,
+      110
+    ]
+  },
+  "kind": "sweep",
+  "mode": "three_block",
+  "n_candidates": 120,
+  "objective": "sum_pnl subject_to worst_maxdd_cap",
+  "score_exclude": [],
+  "sweep_kind": "sample",
+  "sweep_path": "scripts/ewma_holdout20_small.yaml"
+}

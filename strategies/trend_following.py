@@ -48,20 +48,27 @@ from .gates import (
 
 class TrendStrategy(StrategyBase):
     """Simple trend following strategy using MA crossover.
-    
+
     Baseline strategy without any filters.
-    Buy when fast SMA > slow SMA, flat otherwise.
+
+    - ma_kind="sma": buy when fast SMA > slow SMA
+    - ma_kind="ema": buy when fast EMA > slow EMA
     """
 
-    def __init__(self, fast: int = 20, slow: int = 100):
+    def __init__(self, fast: int = 20, slow: int = 100, *, ma_kind: str = "sma"):
         if fast <= 0 or slow <= 0 or fast >= slow:
             raise ValueError("Require 0 < fast < slow")
-        self.fast = fast
-        self.slow = slow
+        mk = str(ma_kind).strip().lower()
+        if mk not in {"sma", "ema"}:
+            raise ValueError("ma_kind must be one of: sma, ema")
+        self.fast = int(fast)
+        self.slow = int(slow)
+        self.ma_kind = mk
 
     @property
     def name(self) -> str:
-        return f"Trend(SMA {self.fast}/{self.slow})"
+        k = "SMA" if self.ma_kind == "sma" else "EMA"
+        return f"Trend({k} {self.fast}/{self.slow})"
 
     def generate_positions(
         self,
@@ -69,15 +76,19 @@ class TrendStrategy(StrategyBase):
         *,
         context: dict | None = None,
     ) -> pd.Series:
-        """Generate positions: 1.0 when fast SMA > slow SMA."""
+        """Generate positions: 1.0 when fast MA > slow MA."""
         px = prices.dropna().astype(float)
         px.index = pd.to_datetime(px.index)
         px = px.sort_index()
 
-        sma_fast = px.rolling(self.fast, min_periods=self.fast).mean()
-        sma_slow = px.rolling(self.slow, min_periods=self.slow).mean()
-        pos = (sma_fast > sma_slow).astype(float)
+        if self.ma_kind == "ema":
+            ma_fast = px.ewm(span=self.fast, adjust=False, min_periods=self.fast).mean()
+            ma_slow = px.ewm(span=self.slow, adjust=False, min_periods=self.slow).mean()
+        else:
+            ma_fast = px.rolling(self.fast, min_periods=self.fast).mean()
+            ma_slow = px.rolling(self.slow, min_periods=self.slow).mean()
 
+        pos = (ma_fast > ma_slow).astype(float)
         return pos
 
 
@@ -103,18 +114,23 @@ class TrendStrategyWithGates(StrategyBase):
         fast: int = 30,
         slow: int = 75,
         *,
+        ma_kind: str = "sma",
         gates: list[SignalGate] | None = None,
         requirements: dict[str, str] | None = None,
     ):
         self.fast = int(fast)
         self.slow = int(slow)
+        self.ma_kind = str(ma_kind).strip().lower()
+        if self.ma_kind not in {"sma", "ema"}:
+            raise ValueError("ma_kind must be one of: sma, ema")
         self.gates = list(gates or [])
         self._requirements = dict(requirements or {})
 
     @property
     def name(self) -> str:
         gate_names = [g.name for g in self.gates]
-        return f"Trend({self.fast}/{self.slow}) + [{', '.join(gate_names)}]"
+        k = "SMA" if self.ma_kind == "sma" else "EMA"
+        return f"Trend({k} {self.fast}/{self.slow}) + [{', '.join(gate_names)}]"
 
     @property
     def data_requirements(self) -> dict[str, str]:
@@ -130,9 +146,14 @@ class TrendStrategyWithGates(StrategyBase):
         px.index = pd.to_datetime(px.index)
         px = px.sort_index()
 
-        sma_fast = px.rolling(self.fast, min_periods=self.fast).mean()
-        sma_slow = px.rolling(self.slow, min_periods=self.slow).mean()
-        pos = (sma_fast > sma_slow).astype(float)
+        if self.ma_kind == "ema":
+            ma_fast = px.ewm(span=self.fast, adjust=False, min_periods=self.fast).mean()
+            ma_slow = px.ewm(span=self.slow, adjust=False, min_periods=self.slow).mean()
+        else:
+            ma_fast = px.rolling(self.fast, min_periods=self.fast).mean()
+            ma_slow = px.rolling(self.slow, min_periods=self.slow).mean()
+
+        pos = (ma_fast > ma_slow).astype(float)
 
         for gate in self.gates:
             pos = gate(pos, px, context)
@@ -168,6 +189,7 @@ class TrendStrategyWithGates(StrategyBase):
 
         fast = cfg.get("trend", {}).get("fast", 30)
         slow = cfg.get("trend", {}).get("slow", 75)
+        ma_kind = cfg.get("trend", {}).get("ma_kind", "sma")
 
         pipeline = cfg.get("pipeline")
         specs: list[dict]
@@ -200,7 +222,7 @@ class TrendStrategyWithGates(StrategyBase):
             gates.append(make_gate({"gate": gate_name, "params": params}))
 
         reqs = cls._infer_requirements(gates)
-        return cls(fast=fast, slow=slow, gates=gates, requirements=reqs)
+        return cls(fast=fast, slow=slow, ma_kind=ma_kind, gates=gates, requirements=reqs)
 # Re-export gates for convenience
 __all__ = [
     # Strategy classes

@@ -1,0 +1,16 @@
+# Small EMA search with 2026 INCLUDED in score/constraints (DD cap applies to holdout)
+kind: sample
+n_candidates: 120
+base: configs/trend_based/reference/ewma_holdout20_base.yaml
+mode: three_block
+dd_cap_percent: 20
+initial_capital: 1000
+top_k: 20
+grid:
+  trend.fast: [25, 28, 30, 32, 35]
+  trend.slow: [80, 90, 100, 110]
+  pipeline.0.params.sep_k: [0.075, 0.08, 0.085]
+  pipeline.1.params.lookback: [40, 45, 50]
+  pipeline.1.params.min_closes: [20, 25]
+  pipeline.4.params.min_on_bars: [3, 4]
+  pipeline.4.params.cooldown_bars: [8, 10, 12]

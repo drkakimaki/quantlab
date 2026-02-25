@@ -71,6 +71,7 @@ class Costs(_ForbidExtra):
 class Trend(_ForbidExtra):
     fast: int = 30
     slow: int = 75
+    ma_kind: Literal["sma", "ema"] = "sma"  # base crossover smoother
 
     @model_validator(mode="after")
     def _check_fast_slow(self) -> "Trend":

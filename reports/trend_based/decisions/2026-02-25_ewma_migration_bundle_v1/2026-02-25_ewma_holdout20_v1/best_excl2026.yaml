@@ -25,7 +25,7 @@ costs:
   fee_per_lot: 3.5
   spread_per_lot: 3.5
 trend:
-  fast: 30
+  fast: 32
   slow: 110
   ma_kind: ema
 time_filter:
@@ -45,7 +45,7 @@ pipeline:
     ema_fast: 50
     ema_slow: 300
     atr_n: 20
-    sep_k: 0.07
+    sep_k: 0.075
 - gate: nochop
   params:
     ema: 20
@@ -62,9 +62,22 @@ pipeline:
     strong_k: 0.2
     size_base: 1.0
     size_strong: 2.0
+- gate: churn
+  params:
+    min_on_bars: 3
+    cooldown_bars: 8
+- gate: mid_loss_limiter
+  params:
+    min_bars: 13
+    max_bars: 48
+    stop_ret: -0.01
+- gate: no_recovery_exit
+  params:
+    bar_n: 24
+    min_ret: -0.005
 - gate: shock_exit
   params:
-    shock_exit_abs_ret: 0.007
+    shock_exit_abs_ret: 0.006
     shock_exit_sigma_k: 0.0
     shock_exit_sigma_window: 96
     shock_cooldown_bars: 0

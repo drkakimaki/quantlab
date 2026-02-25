@@ -1,0 +1,17 @@
+# EMA fix-up sweep (small) starting from the simplified pipeline
+# Base is the EMA decision variant with churn + mid_loss_limiter + no_recovery_exit removed
+# Score policy: base config excludes 2026 from scoring (holdout)
+kind: sample
+n_candidates: 60
+base: reports/trend_based/decisions/2026-02-25_ewma_holdout20_v1/best_excl2026_nochurn_nomidl_norecov.yaml
+mode: three_block
+dd_cap_percent: 20
+initial_capital: 1000
+top_k: 20
+grid:
+  trend.fast: [28, 30, 32, 35]
+  trend.slow: [90, 100, 110]
+  pipeline.0.params.sep_k: [0.07, 0.075, 0.08]
+  pipeline.1.params.lookback: [35, 40, 45]
+  pipeline.1.params.min_closes: [22, 25, 28]
+  pipeline.4.params.shock_exit_abs_ret: [0.005, 0.006, 0.007]

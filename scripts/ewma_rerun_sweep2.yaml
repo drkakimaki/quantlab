@@ -1,0 +1,16 @@
+# Rerun EMA search (chunk 2)
+kind: sample
+n_candidates: 160
+base: configs/trend_based/reference/ewma_base.yaml
+mode: three_block
+dd_cap_percent: 20
+initial_capital: 1000
+top_k: 30
+grid:
+  trend.fast: [20, 22, 25, 28, 30]
+  trend.slow: [85, 90, 95, 100, 110]
+  pipeline.0.params.sep_k: [0.075, 0.080, 0.085, 0.090]
+  pipeline.1.params.lookback: [35, 40, 45, 50]
+  pipeline.1.params.min_closes: [20, 25, 30]
+  pipeline.4.params.min_on_bars: [2, 3]
+  pipeline.4.params.cooldown_bars: [6, 8, 10, 12]

@@ -1,6 +1,6 @@
 # TRADING_INSIGHTS.md
 
-**Last updated:** 2026-02-24 (Europe/Berlin)
+**Last updated:** 2026-02-25 (Europe/Berlin)
 
 A timeless **state + lessons** document for this repo.
 
@@ -18,63 +18,62 @@ What this is *not*:
 
 ## 1) Current state (canonical)
 
-### Canonical config
-- `configs/trend_based/current.yaml`
+### Canonical config (CURRENT)
+- `configs/trend_based/current.yaml` (**EMA**)
+- Pinned name: `configs/trend_based/reference/best_ema_trend.yaml`
 
-### Canonical reports
-- Best trend: `reports/trend_based/best_trend.html`
-- Best trend doc: `reports/trend_based/BEST_TREND_STRATEGY.md`
+### Canonical reports (EMA)
+- Best EMA trend: `reports/trend_based/best_ema_trend.html`
+- Best EMA trend doc: `reports/trend_based/BEST_TREND_STRATEGY.md`
+- Yearly: `reports/trend_based/best_ema_trend_yearly.html`
 - Baselines: `reports/baselines/`
 
+### Archived previous canonical (SMA)
+- Config: `configs/trend_based/best_sma_trend.yaml`
+- Report: `reports/trend_based/best_sma_trend.html`
+- Doc: `reports/trend_based/BEST_SMA_TREND_STRATEGY.md`
+
 ### Baseline semantics (important)
-- **Buy & Hold** baseline is now **~1x notional / unlevered** at entry:
+- **Buy & Hold** baseline is **~1x notional / unlevered** at entry:
   - `position=1.0`
   - `leverage=1.0`
   - per-period `lot_per_size` is set so notional at entry ≈ `initial_capital`
 - The previous Buy & Hold implementation was implicitly **levered** (fixed lots + `position=2.0`), which overstated baseline PnL/DD.
 
-### Current best_trend headline metrics (XAUUSD)
-(from `reports/trend_based/best_trend.html`)
-- 2020–2022: PnL **51.50%**, vs B&H **+31.52%**, MaxDD **-16.33%**, Sharpe **0.70** (CI **-0.29/1.57**)
-- 2023–2025: PnL **366.20%**, vs B&H **+229.85%**, MaxDD **-11.98%**, Sharpe **2.25** (CI **1.28/3.13**)
-- 2026 (HOLDOUT): PnL **172.07%**, vs B&H **+151.07%**, MaxDD **-16.92%**, Sharpe **5.40** (CI **1.48/8.56**)
+### Current best_trend headline metrics (EMA, XAUUSD)
+(from `reports/trend_based/best_ema_trend.html`)
+- 2020–2022: PnL **50.23%**, vs B&H **+30.25%**, MaxDD **-15.63%**, Sharpe **0.74** (CI **-0.31/1.63**)
+- 2023–2025: PnL **387.33%**, vs B&H **+250.99%**, MaxDD **-13.43%**, Sharpe **2.29** (CI **1.35/3.09**)
+- 2026 (HOLDOUT): PnL **148.89%**, vs B&H **+127.89%**, MaxDD **-18.95%**, Sharpe **5.23** (CI **1.61/7.87**)
 
 **Sharpe definition (industry standard):** computed on **daily** close-to-close returns derived from the equity curve (UTC days), annualized with **sqrt(252)**.
 
 ### Current best_trend ingredients (high level)
 - Base: 5m OHLC close
-- Base trend signal: SMA 30/75 on 5m close (long-only)
+- Base trend signal: **EMA 30/110** on 5m close (long-only)
 - Canonical best_trend is a **config-driven gate pipeline** (`current.yaml: pipeline:`).
 
-High-level order (NLP summary):
-- Base signal → entry filters (regime) → time filter (force-flat) → sizing overlays → trade frequency control → post-entry exits
+High-level order:
+- Base signal → entry filters (regime) → time filter (force-flat) → sizing overlays → post-entry exits
 
-Canonical pipeline knobs (pipeline elements only):
-
-| Pipeline gate | Key params | What it does |
-|---|---|---|
-| `ema_sep` | `ema_fast`, `ema_slow`, `atr_n`, `sep_k` | HTF EMA separation filter (ATR-scaled). |
-| `nochop` | `ema`, `lookback`, `min_closes`, `entry_held` | HTF NoChop regime filter. |
-| `time_filter` | *(none in pipeline)* | Applies a force-flat allow-mask built by the runner (see `time_filter:` config in `current.yaml`). |
-| `ema_strength_sizing` | `strong_k` | Segment-held size-up on strong EMA separation. |
-| `churn` | `min_on_bars`, `cooldown_bars` | Entry debounce + re-entry cooldown. |
-| `mid_loss_limiter` | `min_bars`, `max_bars`, `stop_ret` | Kill mid-duration losers (targets 13–48 bar toxic zone). |
-| `no_recovery_exit` | `bar_n`, `min_ret` | Exit if trade hasn’t recovered by N bars (no-recovery). |
-| `shock_exit` | `shock_exit_abs_ret`, `shock_cooldown_bars` | Shock-exit kill-switch (+ optional cooldown). |
-
-- Corr stability gate: **OFF** in canonical (replaced by EMA-strength sizing).
-- Discrete sizing: 0.01 / 0.02 lots only.
+Canonical pipeline gates (EMA):
+- `ema_sep` (regime: HTF EMA separation vs ATR)
+- `nochop` (regime: sustained closes above HTF EMA)
+- `time_filter` (force-flat: FOMC window + month blocks like flat June)
+- `ema_strength_sizing` (size up only when regime is strong)
+- `shock_exit` (kill-switch exit)
 
 ---
 
 ## 2) General lessons (strategy-agnostic)
 
 ### Research / tuning
-- **Filter pile risk:** prefer 1-2 strong concepts over stacking many weak gates.
+- **Smoother base signal can replace gates:** moving the base signal from SMA → EMA reduced the need for some “stability” gates (e.g. churn-style trade-frequency control) while improving scored performance in our tested EMA configs.
+- **Filter pile risk:** prefer 1–2 strong concepts over stacking many weak gates.
 - **Near-parameter ensembling** can be more robust than chasing a single best setting (use sparingly).
 
-### Workflow / process lessons (from this session)
-- **Always keep a strong reference configs** (`configs/trend_based/reference/`) to sanity-check that changes aren’t just in-sample fitting.
+### Workflow / process lessons
+- Keep strong reference configs (`configs/trend_based/reference/`) to sanity-check that changes aren’t just in-sample fitting.
 
 ### Evaluation mindset
 - **Regime bias is real; we are intentionally long-only:** later years appear structurally bullish, so this project currently optimizes a **long-only trend** hypothesis (not a symmetric long/short system).
@@ -87,37 +86,57 @@ Canonical pipeline knobs (pipeline elements only):
 
 ## 3) Strategy-specific insights — best_trend (XAUUSD)
 
-### What mattered (from decision bundles)
-- Sensitivity work suggests **NoChop** and **Churn** are dominant knobs; EMA separation also matters.
+### 3.1) SMA-era insights (historical)
+
+(Keep these as historical context for what used to work under the SMA pipeline.)
+
+#### What mattered (from decision bundles)
+- Sensitivity work suggested **NoChop** and **Churn** were dominant knobs; EMA separation also mattered.
   - Sources:
     - `reports/trend_based/decisions/2026-02-23_nochop_sensitivity_v1/`
     - `reports/trend_based/decisions/2026-02-23_churn_sensitivity_v1/`
     - `reports/trend_based/decisions/2026-02-23_ema_sep_sensitivity_v1/`
 - HTF confirm (`htf_confirm`) was removed from canonical as a redundancy reduction step.
   - Evidence: `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/`
-- Post-entry controls matter; exit sensitivity sweep is captured here:
+- Post-entry controls mattered; exit sensitivity sweep is captured here:
   - `reports/trend_based/decisions/2026-02-23_exits_sensitivity_v1/`
-- Econ calendar expansion (CPI/NFP): implemented infra + wiring, but **disabled in canonical** for now.
+- Econ calendar expansion (CPI/NFP): infra was added, but later disabled in canonical (at the time).
   - `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/`
-- June is structurally weak; canonical mitigation is to **force-flat the entire month**.
+- June was structurally weak; mitigation moved to **force-flat June** via time_filter.
   - Evidence: `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/`
-  - Implementation: `time_filter.months.block: [6]` in `current.yaml`
 
-### Behavioral fingerprints (trade breakdown)
-- **Seasonality:** June is consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
-  - Canonical mitigation: **force-flat June** via `time_filter.months.block: [6]`.
+#### Behavioral fingerprints (trade breakdown)
+- **Seasonality:** June consistently negative (entry-month aggregation). Jan/Oct are strong → expect “summer chop tax”.
 - **Duration-driven edge:**
-  - Very long holds pay: **97+ bars** are strongly positive.
-  - The toxic zone is **13–48 bars** (strongly negative).
-  - Promoting the churn gate (`min_on=3`, `cooldown=8`) reduced total trades (**1449 → 1359**) and improved net PnL mainly by reducing losses in **13–48 bars**.
+  - Very long holds pay: **97+ bars** strongly positive.
+  - Toxic zone: **13–48 bars** strongly negative.
+  - Churn promotion reduced total trades and improved net PnL mainly by reducing losses in **13–48 bars**.
   - Evidence: `reports/trend_based/decisions/2026-02-21_churn_gate_debounce_cooldown_v1/`
 
-### Risk & drawdowns (best_trend-specific)
+#### Risk & drawdowns
 - **~98–99% of drawdown deepening happens while in-position.**
-  - Clarification: This measures *additional loss after entry*, not that losses occur in positions (tautological).
-  - Implication: focus on **post-entry risk controls** (exits/kill-switches), not more entry gating.
-  - Evidence: Most entries show profit at some point; drawdowns develop over multiple bars.
+  - Implication: focus on **post-entry risk controls** (exits/kill-switches), not endless entry gating.
   - Source: `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
+
+### 3.2) EMA migration insights (current)
+
+#### What changed
+- Canonical base signal moved from SMA to **EMA**.
+- EMA canonical pipeline is intentionally **simplified** (relative to SMA-era):
+  - removed: `churn`, `mid_loss_limiter`, `no_recovery_exit`
+  - kept: `ema_sep`, `nochop`, `time_filter`, `ema_strength_sizing`, `shock_exit`
+
+#### What we learned so far
+- In EMA ablation, the **stability backbone** remained:
+  - `ema_sep` + `nochop` + `time_filter` (removing any of these broke the DD cap in the tested setup).
+- **Churn was not needed** for EMA in the tested configuration; disabling it improved scored performance.
+- The 60-candidate fix-up sweep produced an EMA config that beats the archived SMA snapshot on scored (2020–2025) aggregates.
+
+Evidence bundle:
+- `reports/trend_based/decisions/2026-02-25_ewma_migration_bundle_v1/` (folder name kept as-is)
+  - includes:
+    - `2026-02-25_ewma_holdout20_v1/` (early EMA sweep + variants)
+    - `2026-02-25_ewma_nochurn_fixup_small60_v1/` (simplified pipeline + small sweep winner)
 
 ---
 
@@ -125,19 +144,22 @@ Canonical pipeline knobs (pipeline elements only):
 
 Token hygiene: only open/read older decision bundles when explicitly discussing past tuning.
 
-### Promotion / hyperparam work
+### EMA migration bundle (current)
+- `reports/trend_based/decisions/2026-02-25_ewma_migration_bundle_v1/` (folder name kept as-is)
+
+### Promotion / hyperparam work (SMA-era)
 - `reports/trend_based/decisions/2026-02-23_drop_htf_confirm_v1/` (promotion: removed redundant HTF confirm)
 - `reports/trend_based/decisions/2026-02-23_disable_econ_calendar_v1/` (econ calendar CPI/NFP disabled)
 - `reports/trend_based/decisions/2026-02-23_promote_2020_recovery_v1/`
 - `reports/trend_based/decisions/2026-02-24_move_june_flat_to_time_filter_v1/` (promotion: June force-flat via time_filter)
 
-### Sensitivities / robustness probes
+### Sensitivities / robustness probes (SMA-era)
 - `reports/trend_based/decisions/2026-02-23_ema_sep_sensitivity_v1/`
 - `reports/trend_based/decisions/2026-02-23_nochop_sensitivity_v1/`
 - `reports/trend_based/decisions/2026-02-23_churn_sensitivity_v1/`
 - `reports/trend_based/decisions/2026-02-23_exits_sensitivity_v1/`
 
-### Risk research
+### Risk research (SMA-era)
 - `reports/trend_based/decisions/2026-02-14_drawdown_attribution/`
 - `reports/trend_based/decisions/2026-02-15_loss_drawdown_deepdive/`
 

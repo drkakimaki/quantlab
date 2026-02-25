@@ -26,8 +26,7 @@ costs:
   spread_per_lot: 3.5
 trend:
   fast: 30
-  slow: 110
-  ma_kind: ema
+  slow: 75
 time_filter:
   kind: fomc
   fomc:
@@ -35,22 +34,20 @@ time_filter:
     utc_hhmm: '19:00'
     pre_hours: 2.0
     post_hours: 0.5
-  econ_calendar: null
   months:
-    block:
-    - 6
+    block: [6]  # force-flat June entirely
 pipeline:
 - gate: ema_sep
   params:
     ema_fast: 50
     ema_slow: 300
     atr_n: 20
-    sep_k: 0.07
+    sep_k: 0.065
 - gate: nochop
   params:
     ema: 20
     lookback: 40
-    min_closes: 25
+    min_closes: 20
     entry_held: false
 - gate: time_filter
   params: {}
@@ -62,9 +59,23 @@ pipeline:
     strong_k: 0.2
     size_base: 1.0
     size_strong: 2.0
+# (removed) seasonality_cap: June is now force-flat via time_filter.months.block
+- gate: churn
+  params:
+    min_on_bars: 3
+    cooldown_bars: 8
+- gate: mid_loss_limiter
+  params:
+    min_bars: 13
+    max_bars: 48
+    stop_ret: -0.01
+- gate: no_recovery_exit
+  params:
+    bar_n: 24
+    min_ret: -0.005
 - gate: shock_exit
   params:
-    shock_exit_abs_ret: 0.007
+    shock_exit_abs_ret: 0.006
     shock_exit_sigma_k: 0.0
     shock_exit_sigma_window: 96
     shock_cooldown_bars: 0
