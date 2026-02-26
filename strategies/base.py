@@ -50,7 +50,7 @@ class BacktestConfig:
     """
 
     initial_capital: float = 1000.0
-    leverage: float | None = 20.0
+    leverage: float | None = 20.0  # positive float (e.g. 20.0) or None for no margin constraints
     lot_per_size: float = 0.01
     contract_size_per_lot: float = 100.0
     lag: int = 1

@@ -12,7 +12,7 @@ def test_buy_and_hold_makes_money_on_uptrend():
 
     cfg = BacktestConfig(
         initial_capital=1000.0,
-        leverage=None,  # no margin constraints
+        leverage=1.0,  # unlevered baseline (matches runner semantics)
         lot_per_size=0.01,
         contract_size_per_lot=100.0,
         lag=0,

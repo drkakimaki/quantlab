@@ -60,7 +60,13 @@ def _bt_loop_python(
     spread_per_lot: float,
     margin_policy: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Reference loop (pure python). Returns (equity, pnl, costs, contract_units)."""
+    """Reference loop (pure python). Returns (equity, pnl, costs, contract_units).
+
+    KEEP IN SYNC WITH _bt_loop_numba BELOW.
+    The numba version uses adapted params (no None, bool for margin_policy) but
+    the core loop logic must remain identical. Any change here must be reflected
+    in the numba version and verified via golden regression test.
+    """
 
     cost_per_lot = float(fee_per_lot) + float(spread_per_lot)
 
@@ -126,7 +132,16 @@ if _HAVE_NUMBA:
         spread_per_lot,
         margin_policy_skip_entry,
     ):
-        """Numba-accelerated loop. Returns (equity, pnl, costs, contract_units)."""
+        """Numba-accelerated loop. Returns (equity, pnl, costs, contract_units).
+
+        KEEP IN SYNC WITH _bt_loop_python ABOVE.
+        Param differences for numba compatibility:
+        - leverage: float (use -1.0 sentinel for "no leverage" instead of None)
+        - margin_policy_skip_entry: bool (pre-computed from margin_policy string)
+
+        Core loop logic must match the python reference exactly.
+        The check `lev != -1.0` here matches `lev is not None` in python.
+        """
 
         cost_per_lot = fee_per_lot + spread_per_lot
 
@@ -142,7 +157,7 @@ if _HAVE_NUMBA:
         prev_units = 0.0
         prev_lots = 0.0
 
-        lev = leverage  # may be NaN sentinel
+        lev = leverage  # -1.0 sentinel for "no leverage"
 
         for t in range(n):
             price = px[t]
@@ -151,7 +166,8 @@ if _HAVE_NUMBA:
             desired_lots = lots_target[t]
 
             # Entry-only margin check (matches python reference)
-            if margin_policy_skip_entry and lev > 0.0:
+            # lev = -1.0 sentinel means "no leverage" (matches lev is None in python)
+            if margin_policy_skip_entry and lev != -1.0:
                 if prev_units == 0.0 and desired_units != 0.0:
                     req_margin = abs(desired_units * price) / lev
                     if req_margin > eq:
