@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from quantlab.reporting.generate_bt_report import report_periods_equity_only
+from quantlab.reporting.generate_equity_report import report_periods_equity_only
 
 
 def _toy_bt() -> pd.DataFrame:

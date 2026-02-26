@@ -4,7 +4,7 @@ from __future__ import annotations
 
 This is the canonical trade report generator.
 
-Input shape matches generate_bt_report.report_periods_equity_only:
+Input shape matches generate_equity_report.report_periods_equity_only:
   periods: dict[str, pd.DataFrame]
 
 The report extracts canonical trades (contiguous position != 0) and renders:
