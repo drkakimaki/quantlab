@@ -35,10 +35,10 @@ quantlab/
 │   └── trend_based/
 │       ├── reference/       # Archived reference configs
 │       └── current.yaml     # Canonical config
-├── webui/                   # Browser interface
 ├── reporting/               # Report generation (HTML)
 ├── reports/                 # Output reports + decision bundles
 ├── tests/                   # Unit tests + regression (golden series)
+├── webui/                   # Browser interface
 ├── rnd.py                   # Low-token CLI runner (agent-friendly)
 └── check.sh                 # Unit + regression checks (one command)
 ```
@@ -121,25 +121,6 @@ quantlab/
 | `profit_milestone` | Exit | Partial exit at profit milestones |
 | `rolling_max_exit` | Exit | Exit below rolling max threshold |
 
-## Configuration
-
-Canonical config (tracked):
-- `quantlab/configs/trend_based/current.yaml`
-
-Gate pipeline config:
-- `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
-- Gate is ON if it appears in `pipeline:`.
-- Gate order is the list order.
-
-### Config validation (Pydantic)
-To avoid silent misconfig (typos / wrong param names), Quantlab validates the canonical config schema (including *fully typed* gate params).
-The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail fast on unknown keys.
-
-Validate a YAML file directly:
-```bash
-.venv/bin/python -m quantlab.configs.schema quantlab/configs/trend_based/current.yaml
-```
-
 ### Registering new gates:
 - Add a new gate class under `quantlab/strategies/gates/` and register it:
 
@@ -162,13 +143,34 @@ pipeline:
     params: {}
 ```
 
+
+## Configuration
+
+Canonical config (tracked):
+- `quantlab/configs/trend_based/current.yaml`
+
+Gate pipeline config:
+- `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
+- Gate is ON if it appears in `pipeline:`.
+- Gate order is the list order.
+
+### Config validation (Pydantic)
+To avoid silent misconfig (typos / wrong param names), Quantlab validates the canonical config schema (including *fully typed* gate params).
+The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail fast on unknown keys.
+
+Validate a YAML file directly:
+```bash
+.venv/bin/python -m quantlab.configs.schema quantlab/configs/trend_based/current.yaml
+```
+
 ## Reports
 
 **Canonical performance snapshot:** `TRADING_INSIGHTS.md`
 **Best strategy documentation:** `reports/trend_based/BEST_TREND_STRATEGY.md`
 
 ### HTML generation code
-- `quantlab/reporting/generate_bt_report.py` (multi-period single-file equity/performance HTML)
+- `quantlab/reporting/generate_equity_report.py` (multi-period single-file equity/performance HTML)
+- `quantlab/reporting/generate_robustness_report.py` (robustness surface; currently yearly breakdown table, will expand)
 - `quantlab/reporting/generate_trades_report.py` (multi-period single-file trade breakdown HTML)
 
 ### Outputs
