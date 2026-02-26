@@ -220,6 +220,17 @@ def report_robustness(
             return 'inf' if x > 0 else '-inf'
         return f"{x*100:,.2f}%"
 
+    def ratio_fmt(win_days, loss_days) -> str:
+        try:
+            w = int(win_days or 0)
+            l = int(loss_days or 0)
+        except Exception:
+            return 'nan'
+        if l <= 0:
+            return 'inf' if w > 0 else 'nan'
+        return f"{(w / l):.2f}x"
+
+
 
     # Combined daily tail / concentration breakdown (per period)
     winners_by_period = {r['period']: r for r in winners_rows}
@@ -233,11 +244,12 @@ def report_robustness(
         wl_tr.append(
             '<tr>'
             f"<td class='period'>{p}</td>"
-            f"<td class='num mono'>{pct_small(w.get('p90_win_pct'))}</td>"
             f"<td class='num mono'>{int(w.get('n_win_days', 0))}</td>"
-            f"<td class='num mono'>{pct_small(w.get('top5_win_share'))}</td>"
-            f"<td class='num mono'>{pct_small(l.get('p10_loss_pct'))}</td>"
             f"<td class='num mono'>{int(l.get('n_loss_days', 0))}</td>"
+            f"<td class='num mono'>{ratio_fmt(w.get('n_win_days', 0), l.get('n_loss_days', 0))}</td>"
+            f"<td class='num mono'>{pct_small(w.get('p90_win_pct'))}</td>"
+            f"<td class='num mono'>{pct_small(l.get('p10_loss_pct'))}</td>"
+            f"<td class='num mono'>{pct_small(w.get('top5_win_share'))}</td>"
             f"<td class='num mono'>{pct_small(l.get('worst5_loss_share'))}</td>"
             '</tr>'
         )
@@ -434,16 +446,17 @@ def report_robustness(
     <div class='section'>
       <div class='card'>
         <div class='box'>
-          <h2>Daily tail + concentration breakdown</h2>
+          <h2>Win/Loss concentration breakdown</h2>
           <table id='wl-table'>
             <thead>
               <tr>
                 <th>Period</th>
-                <th class='num'>P90 Win (%)*</th>
                 <th class='num'># Win Days</th>
-                <th class='num'>Top-5 Wins / Wins</th>
-                <th class='num'>P10 Loss (%)*</th>
                 <th class='num'># Loss Days</th>
+                <th class='num'>Win/Loss</th>
+                <th class='num'>P90 Win (%)*</th>
+                <th class='num'>P10 Loss (%)*</th>
+                <th class='num'>Top-5 Wins / Wins</th>
                 <th class='num'>Worst-5 Losses / Losses</th>
               </tr>
             </thead>
