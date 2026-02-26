@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 
 from ..engine.backtest import backtest_positions_account_margin
+from ..engine.trades import extract_executions, extract_trade_log
 
 @dataclass
 class BacktestResult:
@@ -178,109 +179,6 @@ class StrategyBase:
     ) -> pd.Series:
         raise NotImplementedError("Subclasses must implement 'generate_positions'")
 
-    def _extract_executions(
-        self,
-        df: pd.DataFrame,
-        prices: pd.Series,
-        config: BacktestConfig,
-    ) -> pd.DataFrame:
-        """Extract execution log (one row per position change).
-        
-        Fields:
-            time: Execution timestamp
-            prev_size: Position size before execution
-            new_size: Position size after execution
-            d_size: Position size change (= new - prev)
-            prev_contract_units: Contract units before execution
-            new_contract_units: Contract units after execution
-            d_contract_units: Contract unit change
-            fill_price: Execution price (bar close)
-            d_lots: Lot change
-            notional: abs(d_contract_units) * fill_price
-            fee_per_lot: Fee per lot
-            spread_per_lot: Spread per lot
-            (legacy bps cost fields removed)
-            costs: Total cost
-            reason: Optional reason (later from gates/risk modules)
-        
-        Args:
-            df: Backtest dataframe with 'position' column
-            prices: Price series for fill prices
-            config: BacktestConfig with cost parameters
-        
-        Returns:
-            DataFrame with execution records.
-        """
-        pos = df["position"]
-        lots = df["lots"]
-        contract_units = df.get("contract_units")
-        
-        # Find position changes
-        d_pos = pos.diff()
-        change_mask = d_pos.abs() > 0
-        
-        if not change_mask.any():
-            return pd.DataFrame(columns=[
-                "time",
-                "prev_size", "new_size", "d_size",
-                "prev_contract_units", "new_contract_units", "d_contract_units",
-                "fill_price", "d_lots", "notional",
-                "fee_per_lot", "spread_per_lot",
-                "costs", "reason",
-            ])
-        
-        cost_per_lot = config.fee_per_lot + config.spread_per_lot
-        
-        records = []
-        for t in pos.index[change_mask]:
-            idx = pos.index.get_loc(t)
-            if idx == 0:
-                continue
-            
-            prev_size = float(pos.iloc[idx - 1])
-            new_size = float(pos.iloc[idx])
-            d_size = new_size - prev_size
-
-            if contract_units is not None:
-                prev_cu = float(contract_units.iloc[idx - 1])
-                new_cu = float(contract_units.iloc[idx])
-                d_cu = new_cu - prev_cu
-            else:
-                # Backward fallback (shouldn't happen in current engine)
-                prev_cu = float(prev_size)
-                new_cu = float(new_size)
-                d_cu = float(d_size)
-            
-            prev_lots = float(lots.iloc[idx - 1])
-            new_lots = float(lots.iloc[idx])
-            d_lots = new_lots - prev_lots
-            
-            fill_price = float(prices.loc[t])
-            notional = abs(d_cu) * fill_price
-            
-            costs = abs(d_lots) * cost_per_lot
-            
-            records.append({
-                "time": t,
-                "prev_size": prev_size,
-                "new_size": new_size,
-                "d_size": d_size,
-                "prev_contract_units": prev_cu,
-                "new_contract_units": new_cu,
-                "d_contract_units": d_cu,
-                "fill_price": fill_price,
-                "d_lots": d_lots,
-                "notional": notional,
-                "fee_per_lot": config.fee_per_lot,
-                "spread_per_lot": config.spread_per_lot,
-                "costs": costs,
-                "reason": None,  # Later from gates/risk modules
-            })
-        
-        return pd.DataFrame(records)
-
-    # NOTE: trade extraction helper removed. Use `quantlab.engine.trades.extract_trade_log`.
-
     def run_backtest(
         self,
         prices: pd.Series,
@@ -330,14 +228,12 @@ class StrategyBase:
         max_drawdown = float(_max_dd(equity)) * 100
 
         # Trade log (canonical)
-        from ..engine.trades import extract_trade_log
-
         trades = extract_trade_log(df).to_dict(orient="records")
         
         # Extract executions if requested
         executions = None
         if config.record_executions:
-            executions = self._extract_executions(df, prices, config)
+            executions = extract_executions(df, prices, config)
 
         return BacktestResult(
             df=df,
