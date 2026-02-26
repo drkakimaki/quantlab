@@ -71,12 +71,12 @@ def _render_existing_reports(strategies: dict) -> str:
             url = f"/report/{sid}"
             mt = _fmt_mtime(report_mtime(sid))
 
-            links = [f'<a href="{url}" target="_blank" rel="noopener">Equity (P)</a>']
+            links = [f'<a href="{url}" target="_blank" rel="noopener">Equity</a>']
 
             # Trade breakdown report (if present)
             if report_exists(sid, kind="trades"):
                 url_t = f"/trades/{sid}"
-                links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades (P)</a>')
+                links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades</a>')
 
             if report_exists(sid, variant="robustness"):
                 url_y = f"/report/{sid}?variant=robustness"
