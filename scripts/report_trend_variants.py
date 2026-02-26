@@ -68,7 +68,7 @@ def main() -> int:
     # Lazy imports (keep CLI help snappy)
     import pandas as pd
 
-    from quantlab.config.schema import validate_config_dict
+    from quantlab.configs.schema import validate_config_dict
     from quantlab.rnd import _prepare_best_trend_inputs, _run_best_trend_periods
     from quantlab.webui.periods import build_periods
     from quantlab.webui.runner import _run_buy_and_hold

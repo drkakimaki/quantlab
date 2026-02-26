@@ -115,7 +115,7 @@ The WebUI runner and `quantlab.rnd` CLI validate configs on load and will fail f
 
 Validate a YAML file directly:
 ```bash
-.venv/bin/python -m quantlab.config.schema quantlab/configs/trend_based/current.yaml
+.venv/bin/python -m quantlab.configs.schema quantlab/configs/trend_based/current.yaml
 ```
 
 Registering new gates:

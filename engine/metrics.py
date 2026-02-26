@@ -158,6 +158,31 @@ def max_drawdown(equity) -> float:
 # (removed) CAGR / volatility / performance_summary wrapper — kept metrics minimal.
 
 
+# --- Exposure metrics ---
+
+
+def exposure_from_position(
+    bt: pd.DataFrame,
+    *,
+    pos_col: str = "position",
+) -> float:
+    """Percent of bars with non-zero exposure.
+
+    Canonical definition (per your spec):
+      Exposure% = mean(|position| > 0) * 100
+
+    Notes
+    -----
+    - Computed on the native bar frequency of the backtest dataframe.
+    - Position is treated as "in market" iff abs(position) > 0.
+    """
+    if bt is None or len(bt) == 0 or pos_col not in bt.columns:
+        return float("nan")
+
+    pos = bt[pos_col].fillna(0.0).astype(float)
+    return float((pos.abs() > 0.0).mean() * 100.0)
+
+
 # --- Trade-level metrics (canonical definition) ---
 # Trade = contiguous segment where position != 0.
 

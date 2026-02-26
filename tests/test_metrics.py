@@ -1,6 +1,6 @@
 import pandas as pd
 
-from quantlab.engine.metrics import max_drawdown, sharpe
+from quantlab.engine.metrics import max_drawdown, sharpe, exposure_from_position
 
 
 def test_max_drawdown_simple():
@@ -14,3 +14,9 @@ def test_sharpe_constant_is_nan():
     idx = pd.date_range("2025-01-01", periods=10, freq="D", tz="UTC")
     eq = pd.Series([100.0] * 10, index=idx)
     assert pd.isna(sharpe(eq))
+
+
+def test_exposure_from_position_simple():
+    bt = pd.DataFrame({"position": [0.0, 1.0, 1.0, 0.0]})
+    # 2/4 bars in position
+    assert exposure_from_position(bt) == 50.0

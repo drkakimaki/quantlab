@@ -403,7 +403,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         p["mode"] = args.mode
         cfg["periods"] = p
 
-    from .config.schema import validate_config_dict
+    from .configs.schema import validate_config_dict
 
     cfg = validate_config_dict(cfg)
 
@@ -501,7 +501,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
         p["mode"] = mode
         base_cfg["periods"] = p
 
-    from .config.schema import validate_config_dict
+    from .configs.schema import validate_config_dict
 
     base_cfg = validate_config_dict(base_cfg)
 

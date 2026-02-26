@@ -198,7 +198,7 @@ def run_backtest(
             cfg = yaml.safe_load(f) or {}
 
         # Fail fast on typos / unknown keys.
-        from ..config.schema import validate_config_dict
+        from ..configs.schema import validate_config_dict
 
         cfg = validate_config_dict(cfg)
 

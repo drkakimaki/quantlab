@@ -12,6 +12,7 @@ import pandas as pd
 from ..engine.metrics import (
     sharpe,
     sharpe_bootstrap,
+    exposure_from_position,
     avg_win_loss_from_position,
     profit_factor_from_position,
     win_rate_from_position,
@@ -32,6 +33,7 @@ class PeriodRow:
     profit_factor: float
     avg_win: float
     avg_loss: float
+    exposure: float
     n_trades: int
     start: str
     end: str
@@ -119,6 +121,7 @@ def report_periods_equity_only(
                     profit_factor=float("nan"),
                     avg_win=float("nan"),
                     avg_loss=float("nan"),
+                    exposure=float("nan"),
                     n_trades=int((n_trades or {}).get(name, 0)),
                     start="",
                     end="",
@@ -172,6 +175,8 @@ def report_periods_equity_only(
         pf = profit_factor_from_position(bt, pos_col="position", returns_col=returns_col)
         avg_win, avg_loss = avg_win_loss_from_position(bt, pos_col="position", returns_col=returns_col)
 
+        exposure = float(exposure_from_position(bt, pos_col="position"))
+
         rows.append(
             PeriodRow(
                 period=name,
@@ -185,6 +190,7 @@ def report_periods_equity_only(
                 profit_factor=pf,
                 avg_win=avg_win,
                 avg_loss=avg_loss,
+                exposure=exposure,
                 n_trades=trades,
                 start=_fmt_ts(bt.index.min()),
                 end=_fmt_ts(bt.index.max()),
@@ -271,6 +277,7 @@ def report_periods_equity_only(
             f"<td class='num mono'>{pf(r.profit_factor)}</td>"
             f"<td class='num mono'>{pct(r.avg_win)}</td>"
             f"<td class='num mono'>{pct(r.avg_loss)}</td>"
+            f"<td class='num mono'>{pct(r.exposure)}</td>"
             f"<td class='num mono'>{r.n_trades}</td>"
             "</tr>"
         )
@@ -514,6 +521,7 @@ def report_periods_equity_only(
                 <th class='num' data-sort='num'>Profit Factor</th>
                 <th class='num' data-sort='num'>Avg Win</th>
                 <th class='num' data-sort='num'>Avg Loss</th>
+                <th class='num' data-sort='num'>Exposure%</th>
                 <th class='num' data-sort='num'># Trades</th>
               </tr>
             </thead>
@@ -642,6 +650,7 @@ def report_robustness(
                     profit_factor=float("nan"),
                     avg_win=float("nan"),
                     avg_loss=float("nan"),
+                    exposure=float("nan"),
                     n_trades=int((n_trades or {}).get(name, 0)),
                     start="",
                     end="",
@@ -693,6 +702,8 @@ def report_robustness(
         pf = profit_factor_from_position(bt, pos_col="position", returns_col=returns_col)
         avg_win, avg_loss = avg_win_loss_from_position(bt, pos_col="position", returns_col=returns_col)
 
+        exposure = float(exposure_from_position(bt, pos_col="position"))
+
         rows.append(
             PeriodRow(
                 period=name,
@@ -706,6 +717,7 @@ def report_robustness(
                 profit_factor=pf,
                 avg_win=avg_win,
                 avg_loss=avg_loss,
+                exposure=exposure,
                 n_trades=trades,
                 start=_fmt_ts(bt.index.min()),
                 end=_fmt_ts(bt.index.max()),
@@ -752,6 +764,7 @@ def report_robustness(
             f"<td class='num mono'>{pf_fmt(r.profit_factor)}</td>"
             f"<td class='num mono'>{pct(r.avg_win)}</td>"
             f"<td class='num mono'>{pct(r.avg_loss)}</td>"
+            f"<td class='num mono'>{pct(r.exposure)}</td>"
             f"<td class='num mono'>{r.n_trades}</td>"
             "</tr>"
         )
@@ -872,6 +885,7 @@ def report_robustness(
                 <th class='num' data-sort='num'>Profit Factor</th>
                 <th class='num' data-sort='num'>Avg Win</th>
                 <th class='num' data-sort='num'>Avg Loss</th>
+                <th class='num' data-sort='num'>Exposure%</th>
                 <th class='num' data-sort='num'># Trades</th>
               </tr>
             </thead>
