@@ -221,25 +221,24 @@ def report_robustness(
         return f"{x*100:,.2f}%"
 
 
-    win_tr = []
-    for r in winners_rows:
-        win_tr.append(
-            '<tr>'
-            f"<td class='period'>{r['period']}</td>"
-            f"<td class='num mono'>{pct_small(r['p90_win_pct'])}</td>"
-            f"<td class='num mono'>{r['n_win_days']}</td>"
-            f"<td class='num mono'>{pct_small(r['top5_win_share'])}</td>"
-            '</tr>'
-        )
+    # Combined daily tail / concentration breakdown (per period)
+    winners_by_period = {r['period']: r for r in winners_rows}
+    losers_by_period = {r['period']: r for r in losers_rows}
 
-    loss_tr = []
-    for r in losers_rows:
-        loss_tr.append(
+    wl_tr = []
+    for r in rows:
+        p = r.period
+        w = winners_by_period.get(p, {})
+        l = losers_by_period.get(p, {})
+        wl_tr.append(
             '<tr>'
-            f"<td class='period'>{r['period']}</td>"
-                        f"<td class='num mono'>{pct_small(r['p10_loss_pct'])}</td>"
-            f"<td class='num mono'>{r['n_loss_days']}</td>"
-            f"<td class='num mono'>{pct_small(r['worst5_loss_share'])}</td>"
+            f"<td class='period'>{p}</td>"
+            f"<td class='num mono'>{pct_small(w.get('p90_win_pct'))}</td>"
+            f"<td class='num mono'>{int(w.get('n_win_days', 0))}</td>"
+            f"<td class='num mono'>{pct_small(w.get('top5_win_share'))}</td>"
+            f"<td class='num mono'>{pct_small(l.get('p10_loss_pct'))}</td>"
+            f"<td class='num mono'>{int(l.get('n_loss_days', 0))}</td>"
+            f"<td class='num mono'>{pct_small(l.get('worst5_loss_share'))}</td>"
             '</tr>'
         )
 
@@ -435,41 +434,27 @@ def report_robustness(
     <div class='section'>
       <div class='card'>
         <div class='box'>
-          <h2>Winners breakdown (daily)</h2>
-          <table id='winners-table'>
+          <h2>Daily tail + concentration breakdown</h2>
+          <table id='wl-table'>
             <thead>
               <tr>
                 <th>Period</th>
-                <th class='num'>P90 Win (%)</th>
+                <th class='num'>P90 Win (%)*</th>
                 <th class='num'># Win Days</th>
                 <th class='num'>Top-5 Wins / Wins</th>
-              </tr>
-            </thead>
-            <tbody>
-              {''.join(win_tr)}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class='section'>
-      <div class='card'>
-        <div class='box'>
-          <h2>Losers breakdown (daily)</h2>
-          <table id='losers-table'>
-            <thead>
-              <tr>
-                <th>Period</th>
-                                <th class='num'>P10 Loss (%)</th>
+                <th class='num'>P10 Loss (%)*</th>
                 <th class='num'># Loss Days</th>
                 <th class='num'>Worst-5 Losses / Losses</th>
               </tr>
             </thead>
             <tbody>
-              {''.join(loss_tr)}
+              {''.join(wl_tr)}
             </tbody>
           </table>
+          <div class='sub' style='padding-top:8px;'>
+            * P90 Win (%): 90th percentile of <span class='mono'>daily_pnl / initial_capital</span> over winning days.
+            P10 Loss (%): 10th percentile of the same over losing days.
+          </div>
         </div>
       </div>
     </div>
