@@ -174,7 +174,7 @@ def load_time_filter_mask(
 def run_backtest(
     strategy_id: str,
     *,
-    breakdown: str | None = None,  # three_block | yearly
+    variant: str | None = None,  # None | "robustness"
     record_executions: bool = False,
 ) -> tuple[bool, str, Path]:
     """Run a backtest using Strategy classes.
@@ -202,11 +202,15 @@ def run_backtest(
 
         cfg = validate_config_dict(cfg)
 
-        # Optional breakdown override from UI
-        if breakdown in {"three_block", "yearly"}:
+        # Variant controls the report surface.
+        # Robustness currently uses a yearly breakdown under the hood.
+        if variant not in {None, "robustness"}:
+            raise ValueError(f"Invalid variant: {variant!r}")
+
+        if variant == "robustness":
             cfg = dict(cfg)
             cfg_periods = dict(cfg.get("periods", {}) or {})
-            cfg_periods["mode"] = breakdown
+            cfg_periods["mode"] = "yearly"
             cfg["periods"] = cfg_periods
 
         periods = build_periods(cfg)
@@ -236,10 +240,7 @@ def run_backtest(
             return False, f"Unknown strategy type: {info.strategy_type}", Path(".")
         
         # Generate report (variant naming)
-        mode = (cfg.get("periods", {}) or {}).get("mode")
-        # We repurpose yearly breakdown as a robustness-style report surface.
-        variant = "robustness" if mode == "yearly" else None
-
+        # `variant` is provided by the caller (UI).
         report_path = get_report_path(strategy_id, variant=variant, kind="equity") or (info.output_dir / info.output)
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -248,26 +249,32 @@ def run_backtest(
             # Buy & Hold baseline over the same periods (for excess return vs baseline).
             baseline_results = _run_buy_and_hold(periods, config)
 
-        final_title = _generate_report(results, info, report_path, cfg=cfg, baseline_results=baseline_results)
+        final_title = _generate_report(results, info, report_path, cfg=cfg, baseline_results=baseline_results, variant=variant)
 
         # Also generate trade breakdown report (convenience for debugging / diagnosis)
-        trades_path = get_report_path(strategy_id, variant=variant, kind="trades")
-        if trades_path is not None:
-            try:
-                periods_df = {name: df for name, (df, _, _) in results.items()}
-                # Trade breakdown report should keep a clean title (avoid dumping the
-                # hyperparam-enriched string into the page title/header).
-                base_title = (final_title.split(" + ", 1)[0].strip() if final_title else info.name)
-                score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
-                report_periods_trades_html(
-                    periods=periods_df,
-                    out_path=trades_path,
-                    title=base_title + " — trade breakdown",
-                    score_exclude=score_exclude,
-                )
-            except Exception:
-                # Don't fail the whole UI run if trade report fails.
-                pass
+        #
+        # Policy: we do NOT generate a separate "robustness trades" report.
+        # The normal per-period trade report is sufficient, and yearly/robustness
+        # runs should stay table-only.
+        trades_path = None
+        if variant is None:
+            trades_path = get_report_path(strategy_id, variant=None, kind="trades")
+            if trades_path is not None:
+                try:
+                    periods_df = {name: df for name, (df, _, _) in results.items()}
+                    # Trade breakdown report should keep a clean title (avoid dumping the
+                    # hyperparam-enriched string into the page title/header).
+                    base_title = (final_title.split(" + ", 1)[0].strip() if final_title else info.name)
+                    score_exclude = list(((cfg.get("periods", {}) or {}).get("score_exclude") or []) or [])
+                    report_periods_trades_html(
+                        periods=periods_df,
+                        out_path=trades_path,
+                        title=base_title + " — trade breakdown",
+                        score_exclude=score_exclude,
+                    )
+                except Exception:
+                    # Don't fail the whole UI run if trade report fails.
+                    trades_path = None
 
         output = f"Generated: {report_path}" + (f"\nGenerated: {trades_path}" if trades_path is not None else "")
         return True, output, report_path
@@ -427,6 +434,7 @@ def _generate_report(
     *,
     cfg: dict | None = None,
     baseline_results: dict[str, tuple[pd.DataFrame, float, int]] | None = None,
+    variant: str | None = None,
 ) -> str:
     """Generate HTML report.
 
@@ -450,8 +458,7 @@ def _generate_report(
 
     baseline_periods = {name: df for name, (df, _, _) in (baseline_results or {}).items()} if baseline_results else None
 
-    mode = (cfg.get("periods", {}) or {}).get("mode") if isinstance(cfg, dict) else None
-    report_fn = report_robustness if (mode == "yearly") else report_periods_equity_only
+    report_fn = report_robustness if (variant == "robustness") else report_periods_equity_only
 
     report_fn(
         periods=periods,
@@ -474,8 +481,8 @@ def get_report_path(strategy_id: str, *, variant: str | None = None, kind: str =
       - "trades": trade breakdown report
 
     variant:
-      - None / "default": default report name
-      - "yearly": yearly breakdown report (suffix "_y")
+      - None: default report
+      - "robustness": robustness report surface (suffix "_robustness")
     """
     strategies = get_strategies()
     if strategy_id not in strategies:
@@ -488,12 +495,15 @@ def get_report_path(strategy_id: str, *, variant: str | None = None, kind: str =
     if kind.strip().lower() in {"trades", "trade", "trade_breakdown"}:
         base = base.with_name(base.stem + "_trades" + base.suffix)
 
-    if variant in {"robustness", "r"}:
+    # Robustness report is equity-only.
+    if variant == "robustness":
+        if kind.strip().lower() in {"trades", "trade", "trade_breakdown"}:
+            return None
         return base.with_name(base.stem + "_robustness" + base.suffix)
 
-    if variant in {"yearly", "y"}:
-        # Backward-compat alias (shouldn't be used by new UI code)
-        return base.with_name(base.stem + "_robustness" + base.suffix)
+    if variant is not None:
+        # Fail fast on unknown variants.
+        return None
 
     return base
 

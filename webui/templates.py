@@ -79,12 +79,10 @@ def _render_existing_reports(strategies: dict) -> str:
                 links.append(f'<a href="{url_t}" target="_blank" rel="noopener">Trades (P)</a>')
 
             if report_exists(sid, variant="robustness"):
-                url_y = f"/report/{sid}?mode=yearly"
+                url_y = f"/report/{sid}?variant=robustness"
                 links.append(f'<a href="{url_y}" target="_blank" rel="noopener">Robustness</a>')
 
-            if report_exists(sid, variant="robustness", kind="trades"):
-                url_ty = f"/trades/{sid}?mode=yearly"
-                links.append(f'<a href="{url_ty}" target="_blank" rel="noopener">Robustness trades</a>')
+            # Robustness trade report removed (we only keep the main trades report)
 
             items.append(
                 f'<div class="strategy-item">'
@@ -285,10 +283,10 @@ HTML_TEMPLATE = """<!doctype html>
 
           <div style="height:12px"></div>
 
-          <label for="breakdown">Time setting</label>
-          <select name="breakdown" id="breakdown">
-            <option value="three_block">3 blocks (20–22 / 23–25 / 26 holdout)</option>
-            <option value="yearly">Robustness (yearly breakdown)</option>
+          <label for="variant">Report</label>
+          <select name="variant" id="variant">
+            <option value="">Performance (3 blocks + holdout)</option>
+            <option value="robustness">Robustness (yearly breakdown)</option>
           </select>
 
           <!-- record_executions checkbox removed (trade report is always generated) -->
@@ -332,7 +330,7 @@ HTML_TEMPLATE = """<!doctype html>
       const output = document.getElementById('output');
       const result = document.getElementById('result');
       const strategy = document.getElementById('strategy').value;
-      const breakdown = document.getElementById('breakdown').value;
+      const variant = document.getElementById('variant').value;
       const recordExecutions = false;
 
       const t0 = Date.now();
@@ -356,7 +354,7 @@ HTML_TEMPLATE = """<!doctype html>
           headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
           body: [
             'strategy=' + encodeURIComponent(strategy),
-            'breakdown=' + encodeURIComponent(breakdown),
+            'variant=' + encodeURIComponent(variant),
             'record_executions=0',
           ].join('&')
         }});

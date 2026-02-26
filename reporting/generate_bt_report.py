@@ -624,11 +624,14 @@ def report_robustness(
     n_trades: dict[str, int] | None = None,
     win_rate: dict[str, float] | None = None,
     score_exclude: list[str] | set[str] | None = None,
+    table_title: str = "Yearly breakdown",
 ) -> Path:
     """Single-file HTML report for multiple periods (TABLE ONLY).
 
-    This is a chartless variant intended for yearly/robustness-style reports.
+    This is a chartless variant intended for yearly breakdown / robustness-style reports.
     No matplotlib rendering, no chart CSS, no chart JS.
+
+    Note: `table_title` controls the h2 label above the main table.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -871,7 +874,7 @@ def report_robustness(
     <div class='section'>
       <div class='card'>
         <div class='box'>
-          <h2>Performance summary</h2>
+          <h2>{table_title}</h2>
           <table id='perf-table'>
             <thead>
               <tr>

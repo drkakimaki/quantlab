@@ -47,8 +47,10 @@ class BacktestHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         strategy_id = parsed.path.split("/")[-1]
         qs = urllib.parse.parse_qs(parsed.query)
-        mode = (qs.get("mode", [""])[0] or "").strip().lower()
-        variant = "robustness" if mode in {"yearly", "y", "robustness", "r"} else None
+        variant = (qs.get("variant", [""])[0] or "").strip().lower() or None
+        if variant not in {None, "robustness"}:
+            self.send_error(400, "Invalid variant")
+            return
 
         path = get_report_path(strategy_id, variant=variant, kind=kind)
 
@@ -77,19 +79,23 @@ class BacktestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Invalid strategy")
             return
         
-        breakdown = params.get("breakdown", [""])[0] or None
+        variant = (params.get("variant", [""])[0] or "").strip().lower() or None
+        if variant not in {None, "robustness"}:
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Invalid variant")
+            return
+
         record_exec = params.get("record_executions", [""])[0] in {"1", "true", "on", "yes"}
 
         success, output, report_path = run_backtest(
             strategy_id,
-            breakdown=breakdown,
+            variant=variant,
             record_executions=record_exec,
         )
-        # Point the user to the correct report variant
-        if report_path.name.endswith("_robustness" + report_path.suffix) or report_path.name.endswith("_y" + report_path.suffix):
-            report_url = f"/report/{strategy_id}?mode=yearly"
-        else:
-            report_url = f"/report/{strategy_id}"
+
+        report_url = f"/report/{strategy_id}" + (f"?variant={variant}" if variant else "")
 
         response = render_result(success, output, report_url)
         
