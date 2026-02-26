@@ -106,7 +106,6 @@ def report_robustness(
         winners_rows.append({
             'period': name,
             'sum_win_pnl': float(wins_d.sum()) if len(wins_d) else float('nan'),
-            'avg_win': float(wins_d.mean()) if len(wins_d) else float('nan'),
             'p90_win': float(wins_d.quantile(0.90)) if len(wins_d) else float('nan'),
             'n_win_days': int(len(wins_d)),
             'top5_win_share': float(top5_wins / denom_wins) if sum_wins > 0 else float('nan'),
@@ -115,7 +114,6 @@ def report_robustness(
         losers_rows.append({
             'period': name,
             'sum_loss_pnl': float(losses_d.sum()) if len(losses_d) else float('nan'),
-            'avg_loss': float(losses_d.mean()) if len(losses_d) else float('nan'),
             'p10_loss': float(losses_d.quantile(0.10)) if len(losses_d) else float('nan'),
             'n_loss_days': int(len(losses_d)),
             'worst5_loss_share': float(worst5_losses_abs / denom_losses) if sum_losses_abs > 0 else float('nan'),
@@ -229,7 +227,6 @@ def report_robustness(
             '<tr>'
             f"<td class='period'>{r['period']}</td>"
             f"<td class='num mono'>{money(r['sum_win_pnl'])}</td>"
-            f"<td class='num mono'>{money(r['avg_win'])}</td>"
             f"<td class='num mono'>{money(r['p90_win'])}</td>"
             f"<td class='num mono'>{r['n_win_days']}</td>"
             f"<td class='num mono'>{pct_small(r['top5_win_share'])}</td>"
@@ -242,7 +239,6 @@ def report_robustness(
             '<tr>'
             f"<td class='period'>{r['period']}</td>"
             f"<td class='num mono'>{money(r['sum_loss_pnl'])}</td>"
-            f"<td class='num mono'>{money(r['avg_loss'])}</td>"
             f"<td class='num mono'>{money(r['p10_loss'])}</td>"
             f"<td class='num mono'>{r['n_loss_days']}</td>"
             f"<td class='num mono'>{pct_small(r['worst5_loss_share'])}</td>"
@@ -447,7 +443,6 @@ def report_robustness(
               <tr>
                 <th>Period</th>
                 <th class='num'>Sum Win PnL</th>
-                <th class='num'>Avg Win</th>
                 <th class='num'>P90 Win</th>
                 <th class='num'># Win Days</th>
                 <th class='num'>Top-5 Wins / Wins</th>
@@ -470,7 +465,6 @@ def report_robustness(
               <tr>
                 <th>Period</th>
                 <th class='num'>Sum Loss PnL</th>
-                <th class='num'>Avg Loss</th>
                 <th class='num'>P10 Loss</th>
                 <th class='num'># Loss Days</th>
                 <th class='num'>Worst-5 Losses / Losses</th>
