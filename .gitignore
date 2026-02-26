@@ -27,6 +27,9 @@ reports/**/raw/**
 .coverage
 htmlcov/
 
+# local scripts (kept locally, not tracked)
+scripts/
+
 # editor / OS
 .vscode/
 .idea/
