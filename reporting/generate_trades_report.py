@@ -15,13 +15,116 @@ The report extracts canonical trades (contiguous position != 0) and renders:
 
 import base64
 import io
+from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .trade_breakdown import build_trade_ledger, duration_bin, agg_trade_table, profit_factor
+from ..engine.trades import build_trade_ledger, duration_bin, agg_trade_table, profit_factor
+
+
+@dataclass(frozen=True)
+class TradeBreakdownPaths:
+    out_dir: Path
+    trades_csv: Path
+    by_month_csv: Path
+    by_side_csv: Path
+    by_duration_csv: Path
+    summary_md: Path
+
+
+def write_trade_breakdown(
+    bt: pd.DataFrame,
+    *,
+    out_dir: str | Path,
+    prefix: str = "bt",
+    pos_col: str = "position",
+    returns_col: str = "returns_net",
+    equity_col: str = "equity",
+    costs_col: str = "costs",
+) -> TradeBreakdownPaths:
+    """Write minimal trade breakdown CSVs (diff-friendly).
+
+    This is intentionally colocated with the trade HTML report generator: it is
+    a reporting concern (writes files), but it relies on canonical trade semantics
+    from `quantlab.engine.trades`.
+    """
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    trades = build_trade_ledger(
+        bt,
+        pos_col=pos_col,
+        returns_col=returns_col,
+        equity_col=equity_col,
+        costs_col=costs_col,
+    )
+
+    trades_csv = out_dir / f"{prefix}_trades.csv"
+    by_month_csv = out_dir / f"{prefix}_by_month.csv"
+    by_side_csv = out_dir / f"{prefix}_by_side.csv"
+    by_duration_csv = out_dir / f"{prefix}_by_duration.csv"
+    summary_md = out_dir / f"{prefix}_SUMMARY.md"
+
+    if trades.empty:
+        trades.to_csv(trades_csv, index=False)
+        pd.DataFrame().to_csv(by_month_csv, index=False)
+        pd.DataFrame().to_csv(by_side_csv, index=False)
+        pd.DataFrame().to_csv(by_duration_csv, index=False)
+        summary_md.write_text(f"Trade breakdown: {prefix}\nNo trades.\n", encoding="utf-8")
+        return TradeBreakdownPaths(out_dir, trades_csv, by_month_csv, by_side_csv, by_duration_csv, summary_md)
+
+    et = pd.to_datetime(trades["entry_time"])
+    trades = trades.copy()
+    trades["entry_month"] = et.dt.to_period("M").astype(str)
+    trades["duration_bin"] = duration_bin(trades["bars"])
+
+    trades.to_csv(trades_csv, index=False)
+
+    by_month = agg_trade_table(trades, "entry_month")
+    by_side = agg_trade_table(trades, "side")
+    by_duration = agg_trade_table(trades, "duration_bin")
+
+    by_month.to_csv(by_month_csv, index=False)
+    by_side.to_csv(by_side_csv, index=False)
+    by_duration.to_csv(by_duration_csv, index=False)
+
+    total_pnl = float(trades["pnl_net"].sum())
+    n = int(len(trades))
+    wr = float(trades["win"].mean())
+    costs = float(trades["costs_total"].sum())
+
+    top = trades.sort_values("pnl_net", ascending=False).head(10)
+    bot = trades.sort_values("pnl_net", ascending=True).head(10)
+
+    def _fmt(x: float) -> str:
+        if np.isnan(x):
+            return "nan"
+        if np.isinf(x):
+            return "inf" if x > 0 else "-inf"
+        return f"{x:,.4f}"
+
+    parts = []
+    parts.append(f"Trade breakdown: {prefix}")
+    parts.append("")
+    parts.append(f"n_trades: {n}")
+    parts.append(f"win_rate: {wr*100:,.2f}%")
+    parts.append(f"sum_pnl_net: {_fmt(total_pnl)}")
+    parts.append(f"sum_costs: {_fmt(costs)}")
+    parts.append("")
+    parts.append("Top winners (pnl_net):")
+    parts.append(top[["trade_id", "entry_time", "exit_time", "bars", "side", "pnl_net", "trade_return"]].to_string(index=False))
+    parts.append("")
+    parts.append("Top losers (pnl_net):")
+    parts.append(bot[["trade_id", "entry_time", "exit_time", "bars", "side", "pnl_net", "trade_return"]].to_string(index=False))
+    parts.append("")
+
+    summary_md.write_text("\n".join(parts) + "\n", encoding="utf-8")
+
+    return TradeBreakdownPaths(out_dir, trades_csv, by_month_csv, by_side_csv, by_duration_csv, summary_md)
 
 
 def _fig_to_data_uri(fig) -> str:

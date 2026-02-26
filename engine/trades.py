@@ -243,3 +243,153 @@ def extract_trade_log(
         )
 
     return pd.DataFrame(rows)
+
+
+def duration_bin(bars: pd.Series) -> pd.Categorical:
+    """Stable duration buckets (in bars) used across trade analysis + reports."""
+    bins = [-np.inf, 1, 3, 6, 12, 24, 48, 96, 192, np.inf]
+    labels = [
+        "1",
+        "2-3",
+        "4-6",
+        "7-12",
+        "13-24",
+        "25-48",
+        "49-96",
+        "97-192",
+        "193+",
+    ]
+    return pd.cut(bars.astype(float), bins=bins, labels=labels)
+
+
+def profit_factor(pnl: pd.Series) -> float:
+    """Profit factor = sum(wins) / sum(|losses|) on *trade* PnL."""
+    pnl = pnl.astype(float)
+    wins = float(pnl[pnl > 0].sum())
+    losses = float((-pnl[pnl < 0]).sum())
+    if losses <= 0:
+        return float("inf") if wins > 0 else float("nan")
+    return wins / losses
+
+
+def agg_trade_table(trades: pd.DataFrame, key: str) -> pd.DataFrame:
+    """Aggregate per-trade ledger into a bucket table.
+
+    Expects columns:
+      - win (bool)
+      - trade_return (float)
+      - pnl_net (float)
+      - bars (int)
+      - costs_total (float) (optional)
+
+    Returns a stable superset of metrics. Callers can subset columns.
+    """
+    g = trades.groupby(key, dropna=False)
+
+    out = pd.DataFrame(
+        {
+            "n_trades": g.size(),
+            "win_rate": g["win"].mean(),
+            "avg_return": g["trade_return"].mean(),
+            "median_return": g["trade_return"].median(),
+            "sum_pnl": g["pnl_net"].sum(),
+            "avg_pnl": g["pnl_net"].mean(),
+            "avg_bars": g["bars"].mean(),
+        }
+    )
+
+    if "costs_total" in trades.columns:
+        out["sum_costs"] = g["costs_total"].sum()
+        out["avg_costs"] = g["costs_total"].mean()
+
+    # Profit factor per bucket
+    pf = []
+    for val, sub in trades.groupby(key, dropna=False):
+        pf.append((val, profit_factor(sub["pnl_net"])))
+    pf_df = pd.DataFrame(pf, columns=[key, "profit_factor"])
+    out = out.reset_index().merge(pf_df, on=key, how="left")
+
+    return out.sort_values("sum_pnl", ascending=False)
+
+
+def build_trade_ledger(
+    bt: pd.DataFrame,
+    *,
+    pos_col: str = "position",
+    returns_col: str = "returns_net",
+    equity_col: str = "equity",
+    costs_col: str = "costs",
+) -> pd.DataFrame:
+    """Create an enriched per-trade ledger from a backtest dataframe.
+
+    Returns a DataFrame with one row per trade and columns:
+      trade_id, entry_time, exit_time, bars, side,
+      entry_equity, exit_equity, pnl_net, trade_return,
+      costs_total, win, open
+    """
+    if bt is None or len(bt) == 0:
+        return pd.DataFrame(
+            columns=[
+                "trade_id",
+                "entry_time",
+                "exit_time",
+                "bars",
+                "side",
+                "entry_equity",
+                "exit_equity",
+                "pnl_net",
+                "trade_return",
+                "costs_total",
+                "win",
+                "open",
+            ]
+        )
+
+    bt = bt.copy()
+    bt.index = pd.to_datetime(bt.index)
+    bt = bt.sort_index()
+
+    for c in (pos_col, returns_col, equity_col):
+        if c not in bt.columns:
+            raise KeyError(f"bt missing required column {c!r}")
+
+    trades = extract_trade_log(bt, pos_col=pos_col, returns_col=returns_col, equity_col=equity_col)
+    if trades.empty:
+        return trades
+
+    # Side at entry
+    pos = bt[pos_col].fillna(0.0).astype(float)
+    entry_pos = pos.reindex(pd.to_datetime(trades["entry_time"]).values).to_numpy(dtype=float)
+    side = np.where(entry_pos > 0, "long", np.where(entry_pos < 0, "short", "flat"))
+
+    # Costs per trade
+    if costs_col in bt.columns:
+        in_pos = pos != 0.0
+        prev_in_pos = in_pos.shift(1, fill_value=False)
+        entry = in_pos & (~prev_in_pos)
+        trade_id = entry.cumsum().astype(int)
+        df = pd.DataFrame({"trade_id": trade_id, "in_pos": in_pos, "costs": bt[costs_col].fillna(0.0).astype(float)})
+        costs_total = df[df["in_pos"]].groupby("trade_id")["costs"].sum()
+        trades["costs_total"] = trades["trade_id"].map(costs_total).fillna(0.0).astype(float)
+    else:
+        trades["costs_total"] = 0.0
+
+    trades["side"] = side
+    trades["pnl_net"] = trades["pnl"].astype(float)
+    trades["win"] = trades["pnl_net"] > 0
+
+    keep = [
+        "trade_id",
+        "entry_time",
+        "exit_time",
+        "bars",
+        "side",
+        "entry_equity",
+        "exit_equity",
+        "pnl_net",
+        "trade_return",
+        "costs_total",
+        "win",
+        "open",
+    ]
+    return trades[keep].sort_values("entry_time").reset_index(drop=True)

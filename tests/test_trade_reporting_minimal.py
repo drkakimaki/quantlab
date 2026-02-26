@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from quantlab.reporting.trade_breakdown import build_trade_ledger, write_trade_breakdown
-from quantlab.reporting.generate_trades_report import report_periods_trades_html
+from quantlab.engine.trades import build_trade_ledger
+from quantlab.reporting.generate_trades_report import report_periods_trades_html, write_trade_breakdown
 
 
 def _toy_bt_two_trades() -> pd.DataFrame:
