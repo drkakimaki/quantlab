@@ -44,6 +44,19 @@ def report_robustness(
 
     rows: list[PeriodRow] = []
 
+    winners_rows: list[dict[str, object]] = []
+    losers_rows: list[dict[str, object]] = []
+
+    def _daily_pnl(bt: pd.DataFrame) -> pd.Series:
+        """Daily PnL series derived from equity (end-of-day equity diffs)."""
+        eq = bt[equity_col].astype(float).copy()
+        eq.index = pd.to_datetime(eq.index)
+        eq = eq.sort_index()
+        # Use UTC days implicitly (index is expected UTC already).
+        eq_d = eq.resample('1D').last().dropna()
+        return eq_d.diff().dropna()
+
+
     for name, bt in periods.items():
         if bt is None or len(bt) == 0:
             rows.append(
@@ -73,6 +86,37 @@ def report_robustness(
         bt = bt.copy()
         bt.index = pd.to_datetime(bt.index)
         bt = bt.sort_index()
+
+        # Daily PnL breakdown (robustness surface)
+        pnl_d = _daily_pnl(bt)
+        wins_d = pnl_d[pnl_d > 0.0]
+        losses_d = pnl_d[pnl_d < 0.0]
+
+        total_net = float(pnl_d.sum())
+        denom_net = max(1e-12, abs(total_net))
+
+        top5_wins = float(wins_d.sort_values(ascending=False).head(5).sum()) if len(wins_d) else 0.0
+        worst5_losses_abs = float((-losses_d.sort_values().head(5)).sum()) if len(losses_d) else 0.0
+        sum_losses_abs = float((-losses_d).sum()) if len(losses_d) else 0.0
+        denom_losses = max(1e-12, sum_losses_abs)
+
+        winners_rows.append({
+            'period': name,
+            'sum_win_pnl': float(wins_d.sum()) if len(wins_d) else float('nan'),
+            'avg_win': float(wins_d.mean()) if len(wins_d) else float('nan'),
+            'p90_win': float(wins_d.quantile(0.90)) if len(wins_d) else float('nan'),
+            'n_win_days': int(len(wins_d)),
+            'top5_win_share': float(top5_wins / denom_net),
+        })
+
+        losers_rows.append({
+            'period': name,
+            'sum_loss_pnl': float(losses_d.sum()) if len(losses_d) else float('nan'),
+            'avg_loss': float(losses_d.mean()) if len(losses_d) else float('nan'),
+            'p10_loss': float(losses_d.quantile(0.10)) if len(losses_d) else float('nan'),
+            'n_loss_days': int(len(losses_d)),
+            'worst5_loss_share': float(worst5_losses_abs / denom_losses),
+        })
 
         eq = bt[equity_col].astype(float)
 
@@ -158,6 +202,49 @@ def report_robustness(
         if np.isinf(x):
             return "inf"
         return f"{x:,.2f}"
+
+    def money(x: float) -> str:
+        x = safe_float(x)
+        if np.isnan(x):
+            return 'nan'
+        if np.isinf(x):
+            return 'inf' if x > 0 else '-inf'
+        return f"{x:,.2f}"
+
+    def pct_small(x: float) -> str:
+        x = safe_float(x)
+        if np.isnan(x):
+            return 'nan'
+        if np.isinf(x):
+            return 'inf' if x > 0 else '-inf'
+        return f"{x*100:,.2f}%"
+
+
+    win_tr = []
+    for r in winners_rows:
+        win_tr.append(
+            '<tr>'
+            f"<td class='period'>{r['period']}</td>"
+            f"<td class='num mono'>{money(r['sum_win_pnl'])}</td>"
+            f"<td class='num mono'>{money(r['avg_win'])}</td>"
+            f"<td class='num mono'>{money(r['p90_win'])}</td>"
+            f"<td class='num mono'>{r['n_win_days']}</td>"
+            f"<td class='num mono'>{pct_small(r['top5_win_share'])}</td>"
+            '</tr>'
+        )
+
+    loss_tr = []
+    for r in losers_rows:
+        loss_tr.append(
+            '<tr>'
+            f"<td class='period'>{r['period']}</td>"
+            f"<td class='num mono'>{money(r['sum_loss_pnl'])}</td>"
+            f"<td class='num mono'>{money(r['avg_loss'])}</td>"
+            f"<td class='num mono'>{money(r['p10_loss'])}</td>"
+            f"<td class='num mono'>{r['n_loss_days']}</td>"
+            f"<td class='num mono'>{pct_small(r['worst5_loss_share'])}</td>"
+            '</tr>'
+        )
 
     tr = []
     for r in rows:
@@ -346,6 +433,53 @@ def report_robustness(
       }})();
     </script>
 
+
+
+    <div class='section'>
+      <div class='card'>
+        <div class='box'>
+          <h2>Winners breakdown (daily)</h2>
+          <table id='winners-table'>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th class='num'>Sum Win PnL</th>
+                <th class='num'>Avg Win</th>
+                <th class='num'>P90 Win</th>
+                <th class='num'># Win Days</th>
+                <th class='num'>Top-5 Win Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(win_tr)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class='section'>
+      <div class='card'>
+        <div class='box'>
+          <h2>Losers breakdown (daily)</h2>
+          <table id='losers-table'>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th class='num'>Sum Loss PnL</th>
+                <th class='num'>Avg Loss</th>
+                <th class='num'>P10 Loss</th>
+                <th class='num'># Loss Days</th>
+                <th class='num'>Worst-5 Loss Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(loss_tr)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <div class='footer sub'>Generated by quantlab.generate_robustness_report.report_robustness</div>
   </div>
 </body>
