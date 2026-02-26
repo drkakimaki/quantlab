@@ -93,12 +93,15 @@ def report_robustness(
         losses_d = pnl_d[pnl_d < 0.0]
 
         total_net = float(pnl_d.sum())
-        denom_net = max(1e-12, abs(total_net))
+        sum_wins = float(wins_d.sum()) if len(wins_d) else 0.0
+        sum_losses_abs = float((-losses_d).sum()) if len(losses_d) else 0.0
+
+        denom_wins = max(1e-12, sum_wins)
+        denom_losses = max(1e-12, sum_losses_abs)
 
         top5_wins = float(wins_d.sort_values(ascending=False).head(5).sum()) if len(wins_d) else 0.0
         worst5_losses_abs = float((-losses_d.sort_values().head(5)).sum()) if len(losses_d) else 0.0
-        sum_losses_abs = float((-losses_d).sum()) if len(losses_d) else 0.0
-        denom_losses = max(1e-12, sum_losses_abs)
+        
 
         winners_rows.append({
             'period': name,
@@ -106,7 +109,7 @@ def report_robustness(
             'avg_win': float(wins_d.mean()) if len(wins_d) else float('nan'),
             'p90_win': float(wins_d.quantile(0.90)) if len(wins_d) else float('nan'),
             'n_win_days': int(len(wins_d)),
-            'top5_win_share': float(top5_wins / denom_net),
+            'top5_win_share': float(top5_wins / denom_wins) if sum_wins > 0 else float('nan'),
         })
 
         losers_rows.append({
@@ -115,7 +118,7 @@ def report_robustness(
             'avg_loss': float(losses_d.mean()) if len(losses_d) else float('nan'),
             'p10_loss': float(losses_d.quantile(0.10)) if len(losses_d) else float('nan'),
             'n_loss_days': int(len(losses_d)),
-            'worst5_loss_share': float(worst5_losses_abs / denom_losses),
+            'worst5_loss_share': float(worst5_losses_abs / denom_losses) if sum_losses_abs > 0 else float('nan'),
         })
 
         eq = bt[equity_col].astype(float)
@@ -447,7 +450,7 @@ def report_robustness(
                 <th class='num'>Avg Win</th>
                 <th class='num'>P90 Win</th>
                 <th class='num'># Win Days</th>
-                <th class='num'>Top-5 Win Share</th>
+                <th class='num'>Top-5 Wins / Wins</th>
               </tr>
             </thead>
             <tbody>
@@ -470,7 +473,7 @@ def report_robustness(
                 <th class='num'>Avg Loss</th>
                 <th class='num'>P10 Loss</th>
                 <th class='num'># Loss Days</th>
-                <th class='num'>Worst-5 Loss Share</th>
+                <th class='num'>Worst-5 Losses / Losses</th>
               </tr>
             </thead>
             <tbody>
