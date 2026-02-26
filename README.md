@@ -3,27 +3,35 @@
 Quantlab is a modular trading-strategy development and backtesting framework with a unified execution engine and a config-driven gate pipeline.
 It includes a WebUI runner for HTML reports and an agent-friendly `quantlab.rnd` CLI.
 
+## Architecture
+
+- **Single backtest engine** — `engine/backtest.py` handles all position accounting, margin, and PnL computation
+- **Composable gates** — Strategy behavior is assembled from small, testable gate classes
+- **Config-as-truth** — YAML configs define the full pipeline; no hidden logic in code
+- **Agent-friendly CLI** — `quantlab.rnd` outputs JSON, designed for automated R&D loops
+
 ## File Structure
 
 ```
 quantlab/
-├── engine/                  # Backtest engine + metrics
-│   ├── backtest.py
-│   ├── metrics.py
-│   └── trades.py            
+├── engine/                  # Backtest engine + metrics + trade extraction
+│   ├── backtest.py          # Core loop (python + optional numba)
+│   ├── metrics.py           # Sharpe, max-DD, trade metrics
+│   └── trades.py            # Trade log + execution extraction
 ├── strategies/              # Strategy classes + gates
 │   ├── base.py              # StrategyBase, BacktestResult, BacktestConfig
 │   ├── buy_and_hold.py
 │   ├── mean_reversion.py
 │   ├── trend_following.py   # TrendStrategy, TrendStrategyWithGates
 │   └── gates/               # Composable gate implementations
-├── time_filter/             # Time-blocking infra (FOMC + econ calendar)
+├── time_filter/             # Time-blocking infra (FOMC + econ calendar + month blocks)
 ├── data/
 │   ├── dukascopy.py         # Tick download, 1s builder
 │   ├── resample.py          # 5m/15m mid + OHLC
 │   ├── download.py          # CLI: download + resample
 │   └── validate.py          # CLI: check integrity
 ├── configs/
+│   ├── schema.py            # Pydantic validation for canonical config
 │   └── trend_based/
 │       ├── reference/       # Archived reference configs
 │       └── current.yaml     # Canonical config
@@ -87,16 +95,31 @@ quantlab/
 
 ## Strategy Classes
 
-- `TrendStrategyWithGates`: main strategy (SMA trend + configurable gate pipeline from YAML).
-- Baselines: `BuyAndHoldStrategy`, `TrendStrategy` (simple SMA), `MeanReversionStrategy`.
+- `TrendStrategyWithGates`: main strategy (MA crossover + configurable gate pipeline from YAML).
+  Supports SMA or EMA via `ma_kind` param in config.
+- Baselines: `BuyAndHoldStrategy`, `TrendStrategy` (simple MA crossover), `MeanReversionStrategy`.
 
 ## Composable Gates
 
-`TrendStrategyWithGates` is a gate pipeline applied on top of a base trend signal.
+`TrendStrategyWithGates` applies a gate pipeline on top of a base trend signal.
 
-Meta-order (recommended):
+### Gate Reference
 
-`base signal → entry filters → time filter → sizing overlays → trade frequency control → post-entry exits`
+| Gate | Category | Purpose |
+|------|----------|---------|
+| `ema_sep` | Entry filter | Require EMA separation > ATR × k (avoid chop) |
+| `nochop` | Entry filter | Require N closes above EMA in lookback (sustained trend) |
+| `htf_confirm` | Entry filter | Require HTF SMA fast > slow |
+| `corr` | Entry filter + sizing | Correlation stability filter + confirm sizing (XAG/EUR) |
+| `time_filter` | Time filter | Block FOMC windows, force-flat specific months |
+| `ema_strength_sizing` | Sizing | Size up when HTF EMA separation is strong |
+| `seasonality_cap` | Sizing | Cap position size by calendar month |
+| `churn` | Churn control | Entry debounce + re-entry cooldown |
+| `shock_exit` | Exit | Force-flat on large adverse bar moves |
+| `mid_loss_limiter` | Exit | Exit losers in toxic mid-duration band |
+| `no_recovery_exit` | Exit | Exit if no new equity high within N bars |
+| `profit_milestone` | Exit | Partial exit at profit milestones |
+| `rolling_max_exit` | Exit | Exit below rolling max threshold |
 
 ## Configuration
 
@@ -107,7 +130,6 @@ Gate pipeline config:
 - `current.yaml` uses `pipeline:`, a list of `{gate, params}` entries.
 - Gate is ON if it appears in `pipeline:`.
 - Gate order is the list order.
-- Legacy flat config blocks are **not supported** (use `pipeline:`).
 
 ### Config validation (Pydantic)
 To avoid silent misconfig (typos / wrong param names), Quantlab validates the canonical config schema (including *fully typed* gate params).
@@ -118,7 +140,7 @@ Validate a YAML file directly:
 .venv/bin/python -m quantlab.configs.schema quantlab/configs/trend_based/current.yaml
 ```
 
-Registering new gates:
+### Registering new gates:
 - Add a new gate class under `quantlab/strategies/gates/` and register it:
 
 ```python
@@ -142,7 +164,8 @@ pipeline:
 
 ## Reports
 
-(Canonical performance snapshot lives in `TRADING_INSIGHTS.md`.)
+**Canonical performance snapshot:** `TRADING_INSIGHTS.md`
+**Best strategy documentation:** `reports/trend_based/BEST_TREND_STRATEGY.md`
 
 ### HTML generation code
 - `quantlab/reporting/generate_bt_report.py` (multi-period single-file equity/performance HTML)
@@ -168,11 +191,18 @@ quantlab/reports/
 │           └── raw/
 ```
 
-
 ## Development
 
-- **API Key:** FRED_API_KEY for economic calendar
+- **API Key:** `FRED_API_KEY` for economic calendar
 - **Design:** Strategy classes with composable gates, single backtest engine
+
+### Checks
+
+```bash
+./check.sh                    # unit tests + regression
+./check.sh --unit-only        # fast unit tests only
+./check.sh --regression-only  # golden series only
+```
 
 ### Regression & parity (mandatory when refactoring execution semantics)
 
