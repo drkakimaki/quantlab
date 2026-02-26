@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from quantlab.engine.trades import build_trade_ledger
-from quantlab.reporting.generate_trades_report import report_periods_trades_html, write_trade_breakdown
+from quantlab.reporting.generate_trades_report import report_periods_trades_html
 
 
 def _toy_bt_two_trades() -> pd.DataFrame:
@@ -66,18 +66,7 @@ def test_build_trade_ledger_basic() -> None:
     assert set(tl["side"].tolist()) == {"long", "short"}
 
 
-def test_write_trade_breakdown_writes_artifacts(tmp_path: Path) -> None:
-    bt = _toy_bt_two_trades()
-    paths = write_trade_breakdown(bt, out_dir=tmp_path, prefix="toy")
-
-    assert paths.trades_csv.exists()
-    assert paths.by_month_csv.exists()
-    assert paths.by_side_csv.exists()
-    assert paths.by_duration_csv.exists()
-    assert paths.summary_md.exists()
-
-    summary = paths.summary_md.read_text(encoding="utf-8")
-    assert "Trade breakdown: toy" in summary
+# (CSV trade breakdown artifacts removed)
 
 
 def test_report_periods_trades_html_no_trades(tmp_path: Path) -> None:
